@@ -249,12 +249,10 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
   display: grid; place-items: center;
   color: var(--empty-ink);
 }
-/* 空き枠の点線（outline だとブラウザによって左右が欠けるため、内側の枠線で描く） */
-.cell.empty::after {
-  content: ""; position: absolute; inset: 0;
-  border: 1.5px dashed var(--empty-line); border-radius: inherit;
-  pointer-events: none;
-}
+/* 空き枠の点線。CSS の点線（outline / border）はスマホのブラウザで左右が欠けることがあるため SVG で描く */
+.cell .dash { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.cell .dash rect { fill: none; stroke: var(--empty-line); stroke-width: 3; stroke-dasharray: 6 5; }
+.cell.empty.selected .dash { display: none; }
 .cell.empty .empty-inner { display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; font-weight: 700; font-size: 12px; }
 .cell.empty .empty-inner svg.i { width: 22px; height: 22px; }
 .cell .num {
@@ -266,7 +264,6 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .cell.empty .num, .cell.selected .num, .stage.show-nums .cell .num { opacity: 1; }
 .cell.selected { box-shadow: inset 0 0 0 3px var(--accent-strong), inset 0 0 0 4px rgba(255,255,255,.85); z-index: 2; }
 .cell.empty.selected { background: var(--accent-soft); }
-.cell.empty.selected::after { border-color: transparent; }
 .cell.swap-src { box-shadow: inset 0 0 0 3px var(--warn), inset 0 0 0 4px rgba(255,255,255,.85); }
 .cell.drop-target { box-shadow: inset 0 0 0 3px var(--accent-strong); background: var(--accent-soft); }
 .cell .lowres {
@@ -1093,6 +1090,9 @@ function updateOverlay() {
     let html = `<span class="num">${i + 1}</span>`;
     if (!ph) {
       const big = rc.w * pxPerMm > 70 && rc.h * pxPerMm > 60;
+      // 線幅3の半分(1.5px)が枠の内側に見える。角丸は枠に合わせる
+      const rx = Math.min(geo.radius, rc.w / 2, rc.h / 2) * pxPerMm;
+      html += `<svg class="dash" aria-hidden="true"><rect x="0" y="0" width="100%" height="100%" rx="${rx.toFixed(1)}"/></svg>`;
       html += `<div class="empty-inner">${icon('plus')}${big ? '<span>写真</span>' : ''}</div>`;
     } else {
       const dpi = 25.4 / (coverBase(ph.w, ph.h, rc.w, rc.h, cell.r) * cell.s);
