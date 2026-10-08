@@ -834,6 +834,9 @@ const LAYOUTS = [
   { id: '5a', cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, 1/3, .5], [1/3, .5, 1/3, .5], [2/3, .5, 1/3, .5]] },
   { id: '6a', cells: grid(3, 2) },
   { id: '6b', cells: grid(2, 3) },
+  // 左半分に大きめ2枚 + 右半分に細長い4枚 / 上半分に2枚 + 下半分に横長の4枚
+  { id: '6c', cells: [[0, 0, .5, .5], [.5, 0, .25, .5], [.75, 0, .25, .5], [0, .5, .5, .5], [.5, .5, .25, .5], [.75, .5, .25, .5]] },
+  { id: '6d', cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, .5, .25], [.5, .5, .5, .25], [0, .75, .5, .25], [.5, .75, .5, .25]] },
   { id: '8a', cells: grid(4, 2) },
   { id: '9a', cells: grid(3, 3) },
   { id: '12a', cells: grid(4, 3) },
@@ -949,7 +952,7 @@ function geometry(st = state) {
   const o = f.enabled ? +f.outer : 0;
   const g = f.enabled ? +f.gap : 0;
   const cw = W - 2 * o, ch = H - 2 * o, e = 1e-6;
-  const rects = layoutRects().map(([fx, fy, fw, fh]) => {
+  const rects = layoutRects(st).map(([fx, fy, fw, fh]) => {
     const inL = fx > e, inT = fy > e, inR = fx + fw < 1 - e, inB = fy + fh < 1 - e;
     let l = o + fx * cw, t = o + fy * ch, r = o + (fx + fw) * cw, b = o + (fy + fh) * ch;
     if (inL) l += g / 2; if (inT) t += g / 2; if (inR) r -= g / 2; if (inB) b -= g / 2;
