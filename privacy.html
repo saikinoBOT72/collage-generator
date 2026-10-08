@@ -42,7 +42,7 @@ code { font-size: 13px; background: var(--bg); padding: 1px 6px; border-radius: 
   <a class="back" href="index.html">← アプリに戻る</a>
   <div class="card">
     <h1>プライバシーポリシー</h1>
-    <p class="date">Pictica（2L判などのフォトコラージュ作成ツール）／ 制定日: 2026年10月8日（同日改定: 「前回の続きから」のための端末内保存を追加）</p>
+    <p class="date">Pictica（2L判などのフォトコラージュ作成ツール）／ 制定日: 2026年10月8日（同日改定: 「前回の続きから」のための端末内保存と、更新の確認を追加）</p>
 
     <div class="summary">
       <strong>要点</strong>
@@ -67,7 +67,8 @@ code { font-size: 13px; background: var(--bg); padding: 1px 6px; border-radius: 
 
     <h2>3. 通信を行わない仕組み</h2>
     <p>本ツールのプログラムには、写真や画像を外部へ送信する処理が含まれていません。外部のフォント、スクリプト、画像、アクセス解析なども読み込んでいません。</p>
-    <p>さらに、HTML ファイルを直接開いた場合や GitHub Pages などで配信した場合は、外部との通信を禁止するセキュリティ設定（Content Security Policy: <code>connect-src 'none'</code> など）がはたらき、仮にプログラムが通信しようとしてもブラウザがブロックします。claude.ai 上で公開している版では、この設定の代わりに claude.ai 側の配信設定が適用されます。</p>
+    <p>さらに、外部のサイトとの通信を禁止するセキュリティ設定（Content Security Policy）を入れているため、仮にプログラムがほかのサイトへ通信しようとしてもブラウザがブロックします。claude.ai 上で公開している版では、この設定の代わりに claude.ai 側の配信設定が適用されます。</p>
+    <p>例外として、新しいバージョンが出ているかを確かめるために、タイトル画面でアプリと同じ場所にある <code>version.json</code>（バージョン番号と更新内容だけが書かれた小さなファイル）を読み込みます。このとき写真や編集内容は一切送りません。HTML ファイルを端末に保存して直接開いた場合は、この確認も行いません。</p>
 
     <h2>4. 端末に保存する情報</h2>
     <ul>

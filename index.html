@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- 外部への通信を一切禁止する（写真はこの端末の中だけで処理されます） -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: data:; manifest-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: data:; manifest-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#211C1E" media="(prefers-color-scheme: dark)">
@@ -595,6 +595,14 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .splash-confirm-btns { display: flex; gap: 8px; }
 .splash-confirm-btns .btn { flex: 1; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.update-box {
+  width: 100%; margin: -8px 0 16px; padding: 10px 12px; border-radius: 12px;
+  background: rgba(156, 199, 232, .22); display: flex; align-items: center; gap: 10px; text-align: left;
+}
+.update-box[hidden] { display: none; }
+.update-text { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.update-text b { display: block; color: var(--text); font-size: 13px; }
+.splash-ver { margin: 6px 0 0; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .splash-foot { margin: 28px 0 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; color: var(--muted); font-size: 12px; }
 .splash-foot svg.i { width: 14px; height: 14px; }
 .splash-foot a { color: var(--accent-strong); font-weight: 600; text-decoration: none; }
@@ -778,6 +786,10 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
     <h2 class="splash-title" id="splashTitle">Pictica</h2>
     <div class="splash-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <p class="splash-sub">写真をならべて、1枚のプリントに。</p>
+    <div class="update-box" id="updateBox" hidden>
+      <div class="update-text"><b>新しいバージョンがあります</b><span id="updateText"></span></div>
+      <button class="btn small primary" id="updateBtn">アップデート</button>
+    </div>
     <div class="splash-actions" id="splashActions">
       <button class="btn splash-main" id="splashNew"><svg class="i"><use href="#i-plus"/></svg>最初から</button>
       <button class="btn splash-main" id="splashResume"><svg class="i"><use href="#i-reset"/></svg>前回の続きから</button>
@@ -791,6 +803,7 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
       </div>
     </div>
     <p class="splash-foot"><svg class="i"><use href="#i-lock"/></svg>写真は端末の外に送信されません ・ <a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p>
+    <p class="splash-ver" id="appVersion"></p>
   </div>
 </div>
 
@@ -848,11 +861,17 @@ const LAYOUTS = [
   { id: '4b', cells: grid(4, 1) },
   { id: '4c', cells: [[0, 0, 1, .6], [0, .6, 1/3, .4], [1/3, .6, 1/3, .4], [2/3, .6, 1/3, .4]] },
   { id: '5a', cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, 1/3, .5], [1/3, .5, 1/3, .5], [2/3, .5, 1/3, .5]] },
+  // 4分割の右下だけを2つに分ける（左右 / 上下）
+  { id: '5b', cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, .5, .5], [.5, .5, .25, .5], [.75, .5, .25, .5]] },
+  { id: '5c', cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, .5, .5], [.5, .5, .5, .25], [.5, .75, .5, .25]] },
   { id: '6a', cells: grid(3, 2) },
   { id: '6b', cells: grid(2, 3) },
   // 左半分に大きめ2枚 + 右半分に細長い4枚 / 上半分に2枚 + 下半分に横長の4枚
   { id: '6c', cells: [[0, 0, .5, .5], [.5, 0, .25, .5], [.75, 0, .25, .5], [0, .5, .5, .5], [.5, .5, .25, .5], [.75, .5, .25, .5]] },
   { id: '6d', cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, .5, .25], [.5, .5, .5, .25], [0, .75, .5, .25], [.5, .75, .5, .25]] },
+  // 左上に大きめ1枚 + 残りを細長く6枚（縦長 / 横長）
+  { id: '7a', cells: [[0, 0, .5, .5], [.5, 0, .25, .5], [.75, 0, .25, .5], [0, .5, .25, .5], [.25, .5, .25, .5], [.5, .5, .25, .5], [.75, .5, .25, .5]] },
+  { id: '7b', cells: [[0, 0, .5, .5], [.5, 0, .5, .25], [.5, .25, .5, .25], [0, .5, .5, .25], [.5, .5, .5, .25], [0, .75, .5, .25], [.5, .75, .5, .25]] },
   { id: '8a', cells: grid(4, 2) },
   { id: '9a', cells: grid(3, 3) },
   { id: '12a', cells: grid(4, 3) },
@@ -2083,9 +2102,9 @@ function scheduleSessionSave() {
 }
 function saveSessionNow() {
   clearTimeout(sessionTimer); sessionTimer = 0;
-  if (!sessionActive) return;
+  if (!sessionActive) return Promise.resolve();
   const meta = { pages: allPages(), cur, photoSeq, order: photos.map(p => p.id), savedAt: Date.now() };
-  storeOp(['meta'], 'readwrite', t => t.objectStore('meta').put(meta, 'session'));
+  return storeOp(['meta'], 'readwrite', t => t.objectStore('meta').put(meta, 'session'));
 }
 // 画面を閉じる・アプリを切り替えるときは待たずに保存
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && sessionTimer) saveSessionNow(); });
@@ -2159,7 +2178,48 @@ function renderSplash() {
   fresh.classList.toggle('primary', !canResume);
   $('#resumeInfo').textContent = sessionActive ? '' : savedInfo ? `前回: ${fmtSaved(savedInfo)}` : '保存されている内容はありません';
 }
-function showSplash() { renderSplash(); splash.classList.remove('hide'); }
+function showSplash() { renderSplash(); splash.classList.remove('hide'); checkUpdate(); }
+
+/* =========================================================
+ * アップデート
+ *  公開するときは APP_VERSION と version.json の version を同じ番号に上げる。
+ *  古い版を開いている人のタイトル画面に「アップデート」が出る。
+ *  確認で読むのは同じ場所の version.json だけ（写真や編集内容は送らない）
+ * ======================================================= */
+const APP_VERSION = '1.1.0';
+let latest = null;
+function newerThan(a, b) {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y;
+  }
+  return false;
+}
+async function checkUpdate() {
+  if (location.protocol === 'file:') return; // ファイルを直接開いているときは確認しない
+  try {
+    const r = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const v = await r.json();
+    if (v && typeof v.version === 'string' && newerThan(v.version, APP_VERSION)) {
+      latest = v;
+      $('#updateText').textContent = `${APP_VERSION} → ${v.version}${v.notes ? `：${v.notes}` : ''}`;
+      $('#updateBox').hidden = false;
+    }
+  } catch (_) { /* オフラインなど。何もしない */ }
+}
+$('#updateBtn').addEventListener('click', async () => {
+  const btn = $('#updateBtn');
+  btn.disabled = true;
+  btn.textContent = '更新中…';
+  await saveSessionNow(); // 編集中の内容は保存しておき、更新後に「前回の続きから」で再開できる
+  if (embedded) { location.reload(); return; }
+  const u = new URL(location.href);
+  u.searchParams.set('v', latest.version); // 古い版がキャッシュから読まれないように
+  location.replace(u.toString());
+});
+$('#appVersion').textContent = `バージョン ${APP_VERSION}`;
 function hideSplash() { splash.classList.add('hide'); }
 function startFresh() {
   clearStore();
@@ -2415,6 +2475,7 @@ layoutPaper();
 renderPagebar();
 renderSplash();
 readSavedInfo().then(info => { savedInfo = info; if (!sessionActive) renderSplash(); });
+checkUpdate();
 
 // テスト・デバッグ用の最小限のフック
 window.__collage = { state, cells, photos, addFiles, geometry, undo, addPage, deletePage, switchPage, get pages() { return allPages(); }, get cur() { return cur; }, get selected() { return selected; }, get undoDepth() { return undoStack.length; }, get redoDepth() { return redoStack.length; }, redo };
