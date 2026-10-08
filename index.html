@@ -1628,8 +1628,18 @@ $('#nav').addEventListener('click', e => {
 });
 
 $('#autoFillBtn').addEventListener('click', autoFill);
-$('#clearPhotosBtn').addEventListener('click', () => {
-  if (!confirm('読み込んだ写真をすべて削除しますか？')) return;
+// 誤操作防止: 1回目で確認表示、3秒以内にもう一度押すと削除
+let clearArmed = 0;
+$('#clearPhotosBtn').addEventListener('click', e => {
+  const btn = e.currentTarget;
+  if (!clearArmed) {
+    btn.innerHTML = `${icon('trash')}もう一度押すと全削除`;
+    btn.style.color = 'var(--danger)';
+    clearArmed = setTimeout(() => { clearArmed = 0; btn.innerHTML = `${icon('trash')}全削除`; btn.style.color = ''; }, 3000);
+    return;
+  }
+  clearTimeout(clearArmed); clearArmed = 0;
+  btn.innerHTML = `${icon('trash')}全削除`; btn.style.color = '';
   [...photos].forEach(p => removePhoto(p.id));
   selected = -1;
   refresh();
@@ -1694,6 +1704,8 @@ function crc32(bytes) {
 }
 
 let lastExport = null;
+// claude.ai の Artifact として表示されているか（単体の HTML ファイルでは false）
+const embedded = !!(window.claude && typeof window.claude.use === 'function');
 async function doExport() {
   const n = activeCount();
   const filled = cells.slice(0, n).filter(c => photoById(c.photoId)).length;
@@ -1731,7 +1743,7 @@ async function doExport() {
     const warns = [];
     if (empty) warns.push(`空いている枠が${empty}つあります（枠の色で塗られます）。`);
     if (lowres) warns.push(`${lowres}枚の写真が低解像度です（拡大しすぎ）。印刷が粗くなる可能性があります。`);
-    const canShare = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type })] }));
+    const canShare = !embedded && !!(navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type })] }));
     setModal(`
       <div class="result-img-wrap"><img src="${lastExport.url}" alt="書き出した画像"></div>
       <div class="result-meta">${px.w} × ${px.h} px ・ ${px.dpi} dpi ・ ${(blob.size / 1024 / 1024).toFixed(1)} MB</div>
@@ -1752,6 +1764,15 @@ $('#exportModal').addEventListener('click', async e => {
   const act = e.target.closest('[data-act]');
   if (!act || !lastExport) return;
   if (act.dataset.act === 'download') {
+    if (embedded) {
+      // claude.ai の Artifact 内では、ビューアの保存機能を使う
+      const dl = await window.claude.use('downloads').catch(() => null);
+      if (dl) {
+        try { await dl.save({ filename: lastExport.name, data: lastExport.blob }); }
+        catch (err) { if (err && err.code !== 'declined') toast('保存できませんでした。画像を長押し（右クリック）して保存してください', { error: true, duration: 4000 }); }
+        return;
+      }
+    }
     const a = document.createElement('a');
     a.href = lastExport.url; a.download = lastExport.name;
     document.body.appendChild(a); a.click(); a.remove();
