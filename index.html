@@ -587,6 +587,13 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .splash-sub { margin: 14px 0 28px; color: var(--muted); font-size: 14px; }
 .splash-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .splash-main { height: 50px; font-size: 15.5px; border-radius: 14px; }
+.resume-info { font-size: 12px; color: var(--muted); min-height: 18px; }
+.splash-confirm { width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.splash-confirm[hidden], .splash-actions[hidden] { display: none; }
+.splash-confirm .warn-box { font-size: 13.5px; padding: 12px 14px; line-height: 1.6; }
+.splash-confirm-btns { display: flex; gap: 8px; }
+.splash-confirm-btns .btn { flex: 1; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .splash-foot { margin: 28px 0 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; color: var(--muted); font-size: 12px; }
 .splash-foot svg.i { width: 14px; height: 14px; }
 .splash-foot a { color: var(--accent-strong); font-weight: 600; text-decoration: none; }
@@ -770,9 +777,17 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
     <h2 class="splash-title" id="splashTitle">Pictica</h2>
     <div class="splash-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <p class="splash-sub">写真をならべて、1枚のプリントに。</p>
-    <div class="splash-actions">
-      <button class="btn primary splash-main" id="splashStart"><svg class="i"><use href="#i-images"/></svg>写真を選んではじめる</button>
-      <button class="btn ghost" id="splashSkip">レイアウトだけ見る</button>
+    <div class="splash-actions" id="splashActions">
+      <button class="btn splash-main" id="splashNew"><svg class="i"><use href="#i-plus"/></svg>最初から</button>
+      <button class="btn splash-main" id="splashResume"><svg class="i"><use href="#i-reset"/></svg>前回の続きから</button>
+      <div class="resume-info" id="resumeInfo"></div>
+    </div>
+    <div class="splash-confirm" id="splashConfirm" hidden>
+      <div class="warn-box"><svg class="i"><use href="#i-alert"/></svg><div id="confirmText"></div></div>
+      <div class="splash-confirm-btns">
+        <button class="btn splash-main" id="confirmCancel">やめる</button>
+        <button class="btn danger splash-main" id="confirmNew">消して最初から</button>
+      </div>
     </div>
     <p class="splash-foot"><svg class="i"><use href="#i-lock"/></svg>写真は端末の外に送信されません ・ <a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p>
   </div>
@@ -1114,6 +1129,11 @@ function openPicker() { fileInput.value = ''; fileInput.click(); }
 fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
 
 async function addFiles(files) {
+  if (!sessionActive) {
+    // タイトル画面でまだ選んでいないときは、前回の内容を上書きしないよう選んでもらう
+    if (savedInfo) { showSplash(); toast('「最初から」か「前回の続きから」を選んでください'); return; }
+    sessionActive = true;
+  }
   hideSplash();
   files = files.filter(f => f.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif|avif|bmp)$/i.test(f.name));
   if (!files.length) return;
@@ -1140,13 +1160,17 @@ async function createPhoto(file) {
   try { img = await loadImage(url); } catch (e) { URL.revokeObjectURL(url); throw e; }
   const w = img.naturalWidth, h = img.naturalHeight;
   if (!w || !h) { URL.revokeObjectURL(url); throw new Error('size'); }
-  const thumbUrl = URL.createObjectURL(await downscale(img, THUMB_MAX, 0.8));
-  let prev = img;
+  const thumbBlob = await downscale(img, THUMB_MAX, 0.8);
+  const thumbUrl = URL.createObjectURL(thumbBlob);
+  let prev = img, prevBlob = null;
   if (Math.max(w, h) > PREVIEW_MAX) {
-    prev = await loadImage(URL.createObjectURL(await downscale(img, PREVIEW_MAX, 0.9)));
+    prevBlob = await downscale(img, PREVIEW_MAX, 0.9);
+    prev = await loadImage(URL.createObjectURL(prevBlob));
     img.src = ''; // 元画像のデコード結果を手放す（書き出し時に再読込）
   }
-  return { id: ++photoSeq, name: file.name, url, w, h, thumbUrl, prev };
+  const ph = { id: ++photoSeq, name: file.name, url, w, h, thumbUrl, prev, file, thumbBlob, prevBlob };
+  savePhotoToStore(ph);
+  return ph;
 }
 
 function removePhoto(id) {
@@ -1155,6 +1179,7 @@ function removePhoto(id) {
   cells.forEach(c => { if (c.photoId === id) Object.assign(c, emptyCell()); });
   pages.forEach(p => p.cells.forEach(c => { if (c.photoId === id) Object.assign(c, emptyCell()); }));
   photos.splice(photos.indexOf(ph), 1);
+  deletePhotoFromStore(id);
   URL.revokeObjectURL(ph.url);
   URL.revokeObjectURL(ph.thumbUrl);
   if (ph.prev && ph.prev.src && ph.prev.src.startsWith('blob:') && ph.prev.src !== ph.url) URL.revokeObjectURL(ph.prev.src);
@@ -1676,7 +1701,7 @@ toolbar.addEventListener('change', e => {
 });
 
 document.addEventListener('keydown', e => {
-  if (!splash.classList.contains('hide')) { if (e.key === 'Escape') hideSplash(); return; }
+  if (!splash.classList.contains('hide')) { if (e.key === 'Escape' && sessionActive) hideSplash(); return; }
   if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); redo(); return; }
   if (e.target.matches('input, textarea, select') && e.target.type !== 'range') return;
@@ -1875,6 +1900,7 @@ function switchPage(i) {
   loadPage(i);
   if (histSnap) histSnap.cur = cur;
   afterPageChange();
+  scheduleSessionSave();
 }
 // 今のページと同じ設定（用紙・向き・分割・枠）で、空のページを次に追加
 function addPage() {
@@ -1960,6 +1986,7 @@ function commitNow() {
   }
   histSnap = now;
   updateHistoryButtons();
+  scheduleSessionSave();
 }
 function updateHistoryButtons() {
   $('#undoBtn').disabled = !undoStack.length;
@@ -1992,15 +2019,175 @@ $('#redoBtn').addEventListener('click', redo);
 /* =========================================================
  * タイトル画面
  * ======================================================= */
-const splash = $('#splash');
-function showSplash() {
-  $('#splashStart').lastChild.textContent = photos.length ? '写真を追加する' : '写真を選んではじめる';
-  $('#splashSkip').textContent = photos.length ? 'つづける' : 'レイアウトだけ見る';
-  splash.classList.remove('hide');
+/* =========================================================
+ * 前回の続きから（この端末のブラウザ内 IndexedDB に保存。外には送らない）
+ *  photos: 写真（元のファイル・縮小画像）
+ *  meta/session: ページと配置
+ * ======================================================= */
+let sessionActive = false;   // 「最初から」か「前回の続きから」を選ぶまでは保存しない（前回の内容を上書きしないため）
+let savedInfo = null;        // 保存されている内容の概要 {pages, photos, savedAt}
+let dbPromise = null;
+function openStore() {
+  if (!dbPromise) dbPromise = new Promise(resolve => {
+    try {
+      const req = indexedDB.open('pictica', 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore('photos', { keyPath: 'id' });
+        req.result.createObjectStore('meta');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+      req.onblocked = () => resolve(null);
+    } catch (_) { resolve(null); }
+  });
+  return dbPromise;
 }
+// 保存はベストエフォート（使えない環境・容量不足でもアプリは普通に動く）
+let storeBarrier = Promise.resolve(); // 「最初から」の削除が終わるまで、次の保存を待たせる
+async function storeOp(names, mode, fn) {
+  await storeBarrier;
+  const db = await openStore();
+  if (!db) return null;
+  return new Promise(resolve => {
+    try {
+      const t = db.transaction(names, mode);
+      const out = fn(t);
+      t.oncomplete = () => resolve(out && 'result' in out ? out.result : true);
+      t.onerror = t.onabort = () => { if (t.error && t.error.name === 'QuotaExceededError') warnQuota(); resolve(null); };
+    } catch (_) { resolve(null); }
+  });
+}
+let quotaWarned = false;
+function warnQuota() {
+  if (quotaWarned) return;
+  quotaWarned = true;
+  toast('端末の保存容量が足りず、続きから再開するための保存ができませんでした', { error: true, duration: 5000 });
+}
+function photoRecord(ph) {
+  return { id: ph.id, name: ph.name, w: ph.w, h: ph.h, file: ph.file, thumb: ph.thumbBlob, prev: ph.prevBlob };
+}
+function savePhotoToStore(ph) {
+  if (!sessionActive || !ph.file) return;
+  storeOp(['photos'], 'readwrite', t => t.objectStore('photos').put(photoRecord(ph)));
+}
+function deletePhotoFromStore(id) {
+  if (!sessionActive) return;
+  storeOp(['photos'], 'readwrite', t => t.objectStore('photos').delete(id));
+}
+let sessionTimer = 0;
+function scheduleSessionSave() {
+  if (!sessionActive) return;
+  clearTimeout(sessionTimer);
+  sessionTimer = setTimeout(saveSessionNow, 400);
+}
+function saveSessionNow() {
+  clearTimeout(sessionTimer); sessionTimer = 0;
+  if (!sessionActive) return;
+  const meta = { pages: allPages(), cur, photoSeq, order: photos.map(p => p.id), savedAt: Date.now() };
+  storeOp(['meta'], 'readwrite', t => t.objectStore('meta').put(meta, 'session'));
+}
+// 画面を閉じる・アプリを切り替えるときは待たずに保存
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && sessionTimer) saveSessionNow(); });
+window.addEventListener('pagehide', () => { if (sessionTimer) saveSessionNow(); });
+
+async function readSavedInfo() {
+  const meta = await storeOp(['meta'], 'readonly', t => t.objectStore('meta').get('session'));
+  if (!meta || !meta.pages || !meta.pages.length) return null;
+  const used = meta.pages.some(p => p.cells.some(c => c.photoId));
+  if (!meta.order.length && !used) return null;
+  return { pages: meta.pages.length, photos: meta.order.length, savedAt: meta.savedAt };
+}
+function clearStore() {
+  const op = storeOp(['photos', 'meta'], 'readwrite', t => { t.objectStore('photos').clear(); t.objectStore('meta').clear(); });
+  storeBarrier = op.then(() => {});
+  savedInfo = null;
+}
+// 写真もページも空の状態に戻す（今の設定はそのまま）
+function resetWork() {
+  [...photos].forEach(ph => {
+    URL.revokeObjectURL(ph.url); URL.revokeObjectURL(ph.thumbUrl);
+    if (ph.prev && ph.prev.src && ph.prev.src.startsWith('blob:') && ph.prev.src !== ph.url) URL.revokeObjectURL(ph.prev.src);
+  });
+  photos.length = 0;
+  cells.length = 0;
+  pages = [{ ...pageSettings(), cells: [] }];
+  cur = 0; selected = -1; swapFrom = -1;
+  undoStack.length = 0; redoStack.length = 0;
+  histSnap = snapshot();
+  afterPageChange();
+  updateHistoryButtons();
+}
+async function restoreSession() {
+  const meta = await storeOp(['meta'], 'readonly', t => t.objectStore('meta').get('session'));
+  const recs = await storeOp(['photos'], 'readonly', t => t.objectStore('photos').getAll());
+  if (!meta || !recs) return false;
+  resetWork();
+  const byId = new Map(recs.map(r => [r.id, r]));
+  let failed = 0;
+  for (const id of meta.order) {
+    const r = byId.get(id);
+    if (!r || !r.file) { failed++; continue; }
+    try {
+      const url = URL.createObjectURL(r.file);
+      const prev = await loadImage(r.prev ? URL.createObjectURL(r.prev) : url);
+      photos.push({ id: r.id, name: r.name, url, w: r.w, h: r.h, thumbUrl: URL.createObjectURL(r.thumb), prev, file: r.file, thumbBlob: r.thumb, prevBlob: r.prev });
+    } catch (_) { failed++; }
+  }
+  photoSeq = Math.max(meta.photoSeq || 0, ...photos.map(p => p.id), 0);
+  pages = meta.pages;
+  loadPage(Math.min(meta.cur || 0, pages.length - 1));
+  histSnap = snapshot();
+  afterPageChange();
+  if (failed) toast(`${failed}枚の写真を読み込めませんでした`, { error: true });
+  return true;
+}
+
+const splash = $('#splash');
+function fmtSaved(info) {
+  const d = new Date(info.savedAt), p2 = v => String(v).padStart(2, '0');
+  return `${info.pages}ページ・写真${info.photos}枚（${d.getMonth() + 1}月${d.getDate()}日 ${p2(d.getHours())}:${p2(d.getMinutes())}）`;
+}
+function hasWork() { return sessionActive ? (photos.length > 0 || pages.some((p, i) => (i === cur ? cells : p.cells).some(c => c.photoId))) : !!savedInfo; }
+function renderSplash() {
+  $('#splashConfirm').hidden = true;
+  $('#splashActions').hidden = false;
+  const canResume = sessionActive || !!savedInfo;
+  const resume = $('#splashResume'), fresh = $('#splashNew');
+  resume.disabled = !canResume;
+  resume.classList.toggle('primary', canResume);
+  fresh.classList.toggle('primary', !canResume);
+  $('#resumeInfo').textContent = sessionActive ? '' : savedInfo ? `前回: ${fmtSaved(savedInfo)}` : '保存されている内容はありません';
+}
+function showSplash() { renderSplash(); splash.classList.remove('hide'); }
 function hideSplash() { splash.classList.add('hide'); }
-$('#splashStart').addEventListener('click', () => { hideSplash(); openPicker(); });
-$('#splashSkip').addEventListener('click', hideSplash);
+function startFresh() {
+  clearStore();
+  resetWork();
+  sessionActive = true;
+  saveSessionNow();
+  hideSplash();
+}
+$('#splashNew').addEventListener('click', () => {
+  if (!hasWork()) { startFresh(); openPicker(); return; }
+  const what = sessionActive ? '今の内容' : '前回の内容';
+  const detail = sessionActive ? `${pages.length}ページ・写真${photos.length}枚` : fmtSaved(savedInfo);
+  $('#confirmText').innerHTML = `<b>${what}（${detail}）は消えます。</b><br>最初からはじめてもよいですか？`;
+  $('#splashActions').hidden = true;
+  $('#splashConfirm').hidden = false;
+  $('#confirmCancel').focus();
+});
+$('#confirmCancel').addEventListener('click', renderSplash);
+$('#confirmNew').addEventListener('click', () => { startFresh(); openPicker(); });
+$('#splashResume').addEventListener('click', async () => {
+  if (sessionActive) { hideSplash(); return; }
+  const btn = $('#splashResume');
+  btn.disabled = true;
+  $('#resumeInfo').textContent = '読み込んでいます…';
+  const ok = await restoreSession();
+  sessionActive = true;
+  if (!ok) toast('前回の内容を読み込めませんでした', { error: true });
+  hideSplash();
+});
 $('#homeBtn').addEventListener('click', showSplash);
 
 /* =========================================================
@@ -2214,9 +2401,6 @@ $('#exportModal').addEventListener('click', async e => {
 $('#exportBtn').addEventListener('click', doExport);
 $('#exportBtn2').addEventListener('click', doExport);
 
-window.addEventListener('beforeunload', e => {
-  if (photos.length) { e.preventDefault(); e.returnValue = ''; }
-});
 
 /* =========================================================
  * 起動
@@ -2228,6 +2412,8 @@ renderLayouts();
 refresh();
 layoutPaper();
 renderPagebar();
+renderSplash();
+readSavedInfo().then(info => { savedInfo = info; if (!sessionActive) renderSplash(); });
 
 // テスト・デバッグ用の最小限のフック
 window.__collage = { state, cells, photos, addFiles, geometry, undo, addPage, deletePage, switchPage, get pages() { return allPages(); }, get cur() { return cur; }, get selected() { return selected; }, get undoDepth() { return undoStack.length; }, get redoDepth() { return redoStack.length; }, redo };
