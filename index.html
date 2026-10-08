@@ -1,0 +1,1787 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 外部への通信を一切禁止する（写真はこの端末の中だけで処理されます） -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#f4f4f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141417" media="(prefers-color-scheme: dark)">
+<title>2L判 フォトコラージュ</title>
+<style>
+:root {
+  --bg: #f4f4f6;
+  --surface: #ffffff;
+  --surface-2: #f0f0f3;
+  --surface-3: #e7e7ec;
+  --border: #e2e2e8;
+  --text: #1c1c21;
+  --muted: #6c6c78;
+  --accent: #2f6bff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(47, 107, 255, .12);
+  --danger: #e5484d;
+  --warn: #f5a524;
+  --stage: #e4e4ea;
+  --paper-shadow: 0 1px 2px rgba(0,0,0,.08), 0 10px 30px rgba(0,0,0,.14);
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 20px rgba(0,0,0,.08);
+  --radius: 12px;
+  --font: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141417;
+    --surface: #1c1c21;
+    --surface-2: #25252b;
+    --surface-3: #303037;
+    --border: #2e2e35;
+    --text: #ececf1;
+    --muted: #9b9ba7;
+    --accent: #5b8cff;
+    --accent-soft: rgba(91, 140, 255, .18);
+    --stage: #0c0c0f;
+    --paper-shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 36px rgba(0,0,0,.55);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 var(--font);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  overflow: hidden;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; touch-action: manipulation; }
+svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- App layout ---------- */
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-areas: "header" "stage" "toolbar" "tray" "panel" "nav";
+}
+@media (min-width: 900px) and (min-height: 521px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "header header" "stage panel" "toolbar panel" "tray panel";
+  }
+}
+
+/* スマホ横向き（高さが低い）: 左にプレビュー、右に操作 */
+@media (max-height: 520px) and (orientation: landscape) {
+  .app {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 42%);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "stage header" "stage toolbar" "stage tray" "stage panel" "stage nav";
+  }
+  .header { border-left: 1px solid var(--border); padding-top: 8px; padding-bottom: 8px; padding-right: max(12px, env(safe-area-inset-right)); }
+  .header .brand h1, .header .privacy, .tray-head .count { display: none; }
+  .toolbar, .tray, .panel, .nav { border-left: 1px solid var(--border); }
+  .toolbar { flex-wrap: wrap; min-height: 0; }
+  .toolbar .sel-label, .tool-sep { display: none; }
+  .tool { min-width: 0; flex: 1 1 0; }
+  .panel { max-height: none !important; border-top: 1px solid var(--border); }
+  .app.panel-open .toolbar, .app.panel-open .tray { display: none; }
+  .app .panel { display: block; }
+  .app:not(.panel-open) .panel section { display: none; }
+  .nav button { height: 46px; }
+  .stage { padding-left: env(safe-area-inset-left); }
+  .app .thumb, .app .add-tile { width: 60px; height: 60px; }
+}
+
+/* ---------- Header ---------- */
+.header {
+  grid-area: header;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-mark {
+  width: 30px; height: 30px; border-radius: 8px; flex: none;
+  background: var(--accent); color: var(--accent-ink);
+  display: grid; place-items: center;
+}
+.brand-mark svg.i { width: 18px; height: 18px; }
+.brand h1 { font-size: 15px; margin: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.privacy {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--muted);
+  padding: 3px 9px; border-radius: 999px; background: var(--surface-2);
+  white-space: nowrap; text-decoration: none;
+}
+.privacy:hover { color: var(--text); }
+.privacy svg.i { width: 13px; height: 13px; }
+.header .spacer { flex: 1; }
+@media (max-width: 560px) { .privacy .long { display: none; } }
+@media (max-width: 420px) { .brand h1 { display: none; } .header { gap: 8px; } }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font-weight: 600; font-size: 13.5px; white-space: nowrap;
+  transition: background .15s, border-color .15s, opacity .15s;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.ghost:hover { background: var(--surface-2); }
+.btn.small { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: 8px; }
+.btn.small svg.i { width: 16px; height: 16px; }
+.btn.block { width: 100%; height: 44px; font-size: 15px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Stage ---------- */
+.stage {
+  grid-area: stage;
+  position: relative;
+  background: var(--stage);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
+  display: grid; place-items: center;
+  min-height: 160px;
+}
+.paper {
+  position: relative;
+  box-shadow: var(--paper-shadow);
+  background: #fff;
+}
+.paper canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cells { position: absolute; inset: 0; }
+.cell {
+  position: absolute;
+  cursor: grab;
+  transition: background-color .15s;
+}
+.cell:active { cursor: grabbing; }
+.cell.empty {
+  cursor: pointer;
+  background: repeating-linear-gradient(-45deg, rgba(120,120,135,.10) 0 8px, rgba(120,120,135,.16) 8px 16px);
+  outline: 1.5px dashed rgba(110,110,125,.55); outline-offset: -1.5px;
+  display: grid; place-items: center;
+  color: rgba(80,80,95,.8);
+}
+.cell.empty .empty-inner { display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; font-weight: 700; font-size: 12px; }
+.cell.empty .empty-inner svg.i { width: 22px; height: 22px; }
+.cell .num {
+  position: absolute; top: 4px; left: 4px;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: rgba(0,0,0,.5); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  pointer-events: none; opacity: 0; transition: opacity .15s;
+}
+.cell.empty .num, .cell.selected .num, .stage.show-nums .cell .num { opacity: 1; }
+.cell.selected { box-shadow: inset 0 0 0 2.5px var(--accent), inset 0 0 0 4px rgba(255,255,255,.85); z-index: 2; }
+.cell.empty.selected { background: rgba(47, 107, 255, .14); outline-color: transparent; }
+.cell.swap-src { box-shadow: inset 0 0 0 2.5px var(--warn), inset 0 0 0 4px rgba(255,255,255,.85); }
+.cell.drop-target { box-shadow: inset 0 0 0 3px var(--accent); background: rgba(47,107,255,.22); }
+.cell .lowres {
+  position: absolute; right: 4px; bottom: 4px;
+  display: flex; align-items: center; gap: 3px;
+  background: rgba(245,165,36,.95); color: #1c1c21;
+  font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px;
+  pointer-events: none;
+}
+.cell .lowres svg.i { width: 12px; height: 12px; }
+.stage-hint {
+  position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
+  background: rgba(20,20,25,.82); color: #fff; font-size: 12.5px; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px; pointer-events: none;
+  white-space: nowrap; z-index: 5;
+}
+.stage-hint[hidden] { display: none; }
+
+/* ---------- Cell toolbar ---------- */
+.toolbar {
+  grid-area: toolbar;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  min-height: 58px;
+  display: flex; align-items: center;
+  padding: 6px 10px;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toolbar::-webkit-scrollbar { display: none; }
+.toolbar .hint { color: var(--muted); font-size: 12.5px; padding: 0 6px; line-height: 1.45; }
+.toolbar .hint b { color: var(--text); font-weight: 600; }
+.tool {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  flex: 1 0 auto; max-width: 84px; min-width: 50px; height: 46px; padding: 0 4px;
+  white-space: nowrap;
+  border: 0; border-radius: 10px; background: transparent; color: var(--text);
+  font-size: 10.5px; font-weight: 600;
+}
+.tool:hover { background: var(--surface-2); }
+.tool:disabled { opacity: .35; cursor: default; background: transparent; }
+.tool.active { background: var(--accent-soft); color: var(--accent); }
+.tool.danger { color: var(--danger); }
+.tool-sep { width: 1px; height: 28px; background: var(--border); margin: 0 4px; flex: none; }
+.sliders { display: none; align-items: center; gap: 14px; margin-left: auto; padding-left: 8px; }
+.sliders label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.sliders input[type=range] { width: 110px; }
+.sliders output { min-width: 40px; font-variant-numeric: tabular-nums; color: var(--text); }
+@media (min-width: 1100px) { .sliders { display: flex; } .tool { flex: 0 0 auto; } }
+@media (max-width: 520px) {
+  .toolbar { padding: 6px 4px; gap: 0; }
+  .toolbar .sel-label, .tool-sep { display: none; }
+  .tool { min-width: 0; flex: 1 1 0; font-size: 10px; }
+}
+.toolbar .sel-label { font-size: 12px; font-weight: 700; color: var(--muted); padding: 0 8px 0 4px; white-space: nowrap; }
+
+/* ---------- Tray ---------- */
+.tray {
+  grid-area: tray;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 8px 0 10px;
+  min-width: 0;
+}
+.tray-head { display: flex; align-items: center; gap: 6px; padding: 0 12px 6px; }
+.tray-head .title { font-weight: 700; font-size: 13px; white-space: nowrap; }
+.tray-head .count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tray-head .spacer { flex: 1; }
+.tray-list {
+  display: flex; gap: 8px;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 2px 12px 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.thumb, .add-tile {
+  position: relative; flex: none;
+  width: 68px; height: 68px; border-radius: 10px;
+  scroll-snap-align: start;
+}
+.add-tile {
+  border: 1.5px dashed var(--border); background: var(--surface-2); color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 11px; font-weight: 600;
+}
+.add-tile:hover { color: var(--accent); border-color: var(--accent); }
+.thumb {
+  overflow: hidden; background: var(--surface-3);
+  cursor: grab; touch-action: pan-x;
+  outline: none;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
+.thumb.used img { opacity: .55; }
+.thumb:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.thumb .badge {
+  position: absolute; left: 4px; bottom: 4px;
+  display: flex; align-items: center; gap: 1px;
+  background: var(--accent); color: #fff; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; padding: 1px 5px 1px 3px; line-height: 15px;
+  pointer-events: none;
+}
+.thumb .badge svg.i { width: 12px; height: 12px; stroke-width: 3; }
+.thumb .rm {
+  position: absolute; top: 3px; right: 3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 0; padding: 0; display: grid; place-items: center;
+  background: rgba(0,0,0,.55); color: #fff;
+}
+.thumb .rm svg.i { width: 13px; height: 13px; stroke-width: 2.5; }
+.thumb.loading { display: grid; place-items: center; }
+.tray-empty {
+  margin: 0 12px; width: calc(100% - 24px);
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px; border-radius: 12px;
+  border: 1.5px dashed var(--border); background: var(--surface-2);
+  text-align: left;
+}
+.tray-empty:hover { border-color: var(--accent); }
+.tray-empty .ico { width: 44px; height: 44px; border-radius: 12px; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
+.tray-empty strong { display: block; font-size: 14px; }
+.tray-empty span { color: var(--muted); font-size: 12px; }
+.drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 100;
+  width: 76px; height: 76px; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35); pointer-events: none;
+  opacity: .92;
+}
+.drag-ghost img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------- Side panel / sheets ---------- */
+.panel {
+  grid-area: panel;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: none;
+  max-height: 46dvh;
+}
+.app.panel-open .panel { display: block; }
+.panel section { display: none; padding: 14px 16px 18px; }
+.panel section.active { display: block; }
+.sheet-done { margin-left: auto; }
+/* スマホ・タブレット縦: 設定を開いている間はトレイ等を畳んでプレビューを広く */
+@media (max-width: 899px), (max-height: 520px) {
+  .app.panel-open .toolbar, .app.panel-open .tray { display: none; }
+  .panel section { max-width: 680px; margin: 0 auto; }
+  .app.panel-open .panel { max-height: 52dvh; box-shadow: 0 -8px 24px rgba(0,0,0,.08); }
+  .panel section { padding-top: 0; }
+  .panel h2 { position: sticky; top: 0; background: var(--surface); margin: 0 -16px 8px; padding: 10px 16px; z-index: 1; }
+  .thumb, .add-tile { width: 72px; height: 72px; }
+}
+@media (min-width: 600px) and (max-width: 899px) {
+  .thumb, .add-tile { width: 84px; height: 84px; }
+}
+@media (min-width: 900px) and (min-height: 521px) {
+  .panel { display: block; max-height: none; border-top: 0; border-left: 1px solid var(--border); }
+  .panel section { display: block; border-bottom: 1px solid var(--border); }
+  .sheet-done { display: none; }
+  .panel section:last-child { border-bottom: 0; }
+  .nav { display: none !important; }
+}
+.panel h2 { font-size: 13px; margin: 0 0 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.panel h2 svg.i { width: 17px; height: 17px; color: var(--accent); }
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.field-label output, .field-label .val { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 700; }
+.field.disabled { opacity: .45; pointer-events: none; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.row .label { font-weight: 600; font-size: 13.5px; }
+.row .sub { color: var(--muted); font-size: 12px; }
+
+.seg { display: flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button {
+  flex: 1; height: 32px; border: 0; border-radius: 8px; background: transparent;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
+}
+.seg button small { font-size: 10px; font-weight: 500; opacity: .8; }
+.seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.seg.tall button { height: 42px; }
+
+.layouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
+.layout-btn {
+  border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px;
+  padding: 7px 4px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+}
+.layout-btn:hover { border-color: var(--muted); }
+.layout-btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.layout-btn svg { display: block; height: 40px; width: auto; }
+.layout-btn svg rect.p { fill: var(--surface-2); stroke: var(--muted); stroke-width: 1; }
+.layout-btn svg rect.c { fill: var(--muted); opacity: .45; }
+.layout-btn.on svg rect.c { fill: var(--accent); opacity: .7; }
+.layout-btn.on svg rect.p { stroke: var(--accent); }
+
+.custom-grid { display: flex; gap: 10px; margin-top: 10px; }
+.stepper { flex: 1; display: flex; align-items: center; justify-content: space-between; background: var(--surface-2); border-radius: 10px; padding: 3px; }
+.stepper span { font-size: 12px; font-weight: 600; color: var(--muted); padding-left: 8px; }
+.stepper .ctl { display: flex; align-items: center; }
+.stepper button { width: 30px; height: 30px; border: 0; border-radius: 8px; background: var(--surface); font-size: 16px; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.stepper button:disabled { opacity: .4; }
+.stepper b { min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 28px; background: transparent; margin: 0;
+  touch-action: pan-y;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--surface-3); }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--surface-3); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -8px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); }
+
+.switch { position: relative; display: inline-block; width: 44px; height: 26px; flex: none; }
+.switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 1; }
+.switch .track { position: absolute; inset: 0; border-radius: 13px; background: var(--surface-3); transition: background .2s; }
+.switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(18px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.swatches { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.swatch {
+  width: 30px; height: 30px; border-radius: 50%; padding: 0;
+  border: 1px solid rgba(0,0,0,.18);
+  box-shadow: 0 0 0 0 var(--accent);
+  transition: box-shadow .15s;
+}
+.swatch.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+.swatch-custom { position: relative; overflow: hidden; background: conic-gradient(#f44, #fd4, #4d4, #4df, #44f, #f4f, #f44); }
+.swatch-custom input { position: absolute; inset: -8px; width: 50px; height: 50px; opacity: 0; cursor: pointer; }
+
+.note { font-size: 12px; color: var(--muted); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; line-height: 1.6; }
+.note.privacy-note { display: flex; gap: 10px; }
+.note.privacy-note svg.i { width: 18px; height: 18px; color: var(--accent); margin-top: 1px; }
+.spec { font-size: 12px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
+
+/* ---------- Bottom nav (mobile) ---------- */
+.nav {
+  grid-area: nav;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav button {
+  flex: 1; height: 54px; border: 0; background: transparent;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+}
+.nav button.on { color: var(--accent); }
+
+/* ---------- Toast ---------- */
+.toasts { position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: max-content; max-width: calc(100vw - 32px); }
+.toast {
+  background: rgba(24,24,30,.94); color: #fff; padding: 9px 14px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; box-shadow: var(--shadow);
+  animation: toast-in .2s ease-out;
+}
+.toast.error { background: var(--danger); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } }
+
+/* ---------- Modal ---------- */
+.modal {
+  position: fixed; inset: 0; z-index: 150;
+  background: rgba(10,10,14,.6);
+  display: grid; place-items: center;
+  padding: 16px;
+  animation: fade .15s ease-out;
+}
+.modal[hidden] { display: none; }
+@keyframes fade { from { opacity: 0; } }
+.modal-card {
+  width: min(520px, 100%); max-height: calc(100dvh - 32px);
+  background: var(--surface); border-radius: 16px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-head { display: flex; align-items: center; padding: 12px 12px 12px 18px; border-bottom: 1px solid var(--border); }
+.modal-head h3 { margin: 0; font-size: 15px; flex: 1; }
+.modal-body { padding: 16px 18px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.result-img-wrap { background: var(--stage); border-radius: 10px; padding: 14px; display: grid; place-items: center; min-height: 200px; }
+.result-img-wrap img { max-width: 100%; max-height: 50dvh; display: block; box-shadow: var(--paper-shadow); }
+.result-meta { font-size: 12.5px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.warn-box { display: flex; gap: 8px; font-size: 12.5px; background: rgba(245,165,36,.15); border-radius: 10px; padding: 9px 12px; }
+.warn-box svg.i { width: 17px; height: 17px; color: var(--warn); }
+.modal-foot { display: flex; gap: 8px; padding: 12px 18px 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.modal-foot .btn { flex: 1; height: 44px; }
+.spinner { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--surface-3); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+.spinner.sm { width: 22px; height: 22px; border-width: 2.5px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.drop-overlay {
+  position: fixed; inset: 0; z-index: 120; pointer-events: none;
+  background: rgba(47,107,255,.14); border: 3px dashed var(--accent);
+  display: grid; place-items: center; font-size: 18px; font-weight: 700; color: var(--accent);
+}
+.drop-overlay[hidden] { display: none; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol>
+  <symbol id="i-images" viewBox="0 0 24 24"><path d="M18 22H4a2 2 0 0 1-2-2V6"/><rect x="6" y="2" width="16" height="16" rx="2"/><circle cx="12" cy="8" r="2"/><path d="m22 13-1.3-1.3a2 2 0 0 0-2.8 0L10 19"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></symbol>
+  <symbol id="i-frame" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-flip" viewBox="0 0 24 24"><path d="m3 7 5 5-5 5V7"/><path d="m21 7-5 5 5 5V7"/><path d="M12 20v2M12 14v2M12 8v2M12 2v2"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-eraser" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L11 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <header class="header">
+    <div class="brand">
+      <div class="brand-mark"><svg class="i"><use href="#i-layout"/></svg></div>
+      <h1>フォトコラージュ</h1>
+    </div>
+    <a class="privacy" href="privacy.html" target="_blank" rel="noopener" title="写真はこの端末の中だけで処理され、インターネットには送信されません（プライバシーポリシー）">
+      <svg class="i"><use href="#i-lock"/></svg>端末内で処理<span class="long">・送信なし</span>
+    </a>
+    <div class="spacer"></div>
+    <button class="btn primary" id="exportBtn"><svg class="i"><use href="#i-download"/></svg>書き出す</button>
+  </header>
+
+  <main class="stage" id="stage" aria-label="プレビュー">
+    <div class="paper" id="paper">
+      <canvas id="canvas"></canvas>
+      <div class="cells" id="cells"></div>
+    </div>
+    <div class="stage-hint" id="stageHint" hidden></div>
+  </main>
+
+  <div class="toolbar" id="toolbar" role="toolbar" aria-label="選択中の枠"></div>
+
+  <div class="tray" id="tray">
+    <div class="tray-head">
+      <span class="title">写真</span>
+      <span class="count" id="trayCount"></span>
+      <span class="spacer"></span>
+      <button class="btn small ghost" id="autoFillBtn" title="空いている枠に未使用の写真を順番に入れる"><svg class="i"><use href="#i-sparkle"/></svg>自動で並べる</button>
+      <button class="btn small ghost" id="clearPhotosBtn" title="読み込んだ写真をすべて削除"><svg class="i"><use href="#i-trash"/></svg>全削除</button>
+    </div>
+    <div class="tray-list" id="trayList"></div>
+  </div>
+
+  <aside class="panel" id="panel">
+    <section data-sec="layout">
+      <h2><svg class="i"><use href="#i-layout"/></svg>用紙とレイアウト</h2>
+      <div class="field">
+        <div class="field-label">用紙サイズ <span class="val" id="paperDims"></span></div>
+        <div class="seg" data-seg="paper"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">向き</div>
+        <div class="seg" data-seg="orient">
+          <button data-v="portrait">縦</button>
+          <button data-v="landscape">横</button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label">分割 <span class="val" id="layoutCount"></span></div>
+        <div class="layouts" id="layouts"></div>
+        <div class="custom-grid" id="customGrid">
+          <div class="stepper"><span>行</span><div class="ctl"><button data-step="rows" data-d="-1" aria-label="行を減らす">−</button><b id="rowsVal"></b><button data-step="rows" data-d="1" aria-label="行を増やす">+</button></div></div>
+          <div class="stepper"><span>列</span><div class="ctl"><button data-step="cols" data-d="-1" aria-label="列を減らす">−</button><b id="colsVal"></b><button data-step="cols" data-d="1" aria-label="列を増やす">+</button></div></div>
+        </div>
+      </div>
+      <div class="field">
+        <button class="btn small" id="clearCellsBtn"><svg class="i"><use href="#i-eraser"/></svg>配置をすべて外す</button>
+      </div>
+    </section>
+
+    <section data-sec="frame">
+      <h2><svg class="i"><use href="#i-frame"/></svg>枠</h2>
+      <div class="field row">
+        <div><div class="label">枠をつける</div><div class="sub">外周と写真の間に余白を入れます</div></div>
+        <label class="switch"><input type="checkbox" data-bind="frame.enabled" aria-label="枠をつける"><span class="track"></span></label>
+      </div>
+      <div class="field" data-needs-frame>
+        <div class="field-label">外側の幅 <output data-out="frame.outer"></output></div>
+        <input type="range" min="0" max="15" step="0.5" data-bind="frame.outer" aria-label="外側の幅">
+      </div>
+      <div class="field" data-needs-frame>
+        <div class="field-label">写真の間隔 <output data-out="frame.gap"></output></div>
+        <input type="range" min="0" max="15" step="0.5" data-bind="frame.gap" aria-label="写真の間隔">
+      </div>
+      <div class="field" data-needs-frame>
+        <div class="field-label">角の丸み <output data-out="frame.radius"></output></div>
+        <input type="range" min="0" max="10" step="0.5" data-bind="frame.radius" aria-label="角の丸み">
+      </div>
+      <div class="field" data-needs-frame>
+        <div class="field-label">枠の色</div>
+        <div class="swatches" id="swatches">
+          <button class="swatch" data-color="#ffffff" style="background:#ffffff" aria-label="白"></button>
+          <button class="swatch" data-color="#f6f1e7" style="background:#f6f1e7" aria-label="生成り"></button>
+          <button class="swatch" data-color="#d9d9de" style="background:#d9d9de" aria-label="グレー"></button>
+          <button class="swatch" data-color="#1c1c1f" style="background:#1c1c1f" aria-label="黒"></button>
+          <label class="swatch swatch-custom" aria-label="色を選ぶ"><input type="color" id="colorInput"></label>
+        </div>
+      </div>
+      <div class="field row">
+        <div><div class="label">カット用ガイド線</div><div class="sub">切り分ける位置に細い点線を入れます</div></div>
+        <label class="switch"><input type="checkbox" data-bind="frame.cutGuide" aria-label="カット用ガイド線"><span class="track"></span></label>
+      </div>
+    </section>
+
+    <section data-sec="export">
+      <h2><svg class="i"><use href="#i-download"/></svg>書き出し</h2>
+      <div class="field">
+        <div class="field-label">解像度</div>
+        <div class="seg tall" data-seg="dpi"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">形式</div>
+        <div class="seg" data-seg="format">
+          <button data-v="jpeg">JPEG</button>
+          <button data-v="png">PNG</button>
+        </div>
+        <div class="spec" id="exportSpec"></div>
+      </div>
+      <div class="field">
+        <button class="btn primary block" id="exportBtn2"><svg class="i"><use href="#i-download"/></svg>画像を書き出す</button>
+      </div>
+      <div class="field">
+        <div class="note privacy-note">
+          <svg class="i"><use href="#i-lock"/></svg>
+          <div>写真の読み込み・編集・書き出しはすべてこの端末のブラウザ内で行われます。外部との通信はページ自体の設定（CSP）で禁止しているため、写真がサーバーへ送信されることはありません。<br><a href="privacy.html" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">プライバシーポリシー</a></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <nav class="nav" id="nav">
+    <button data-panel="layout"><svg class="i"><use href="#i-layout"/></svg>レイアウト</button>
+    <button data-panel="frame"><svg class="i"><use href="#i-frame"/></svg>枠</button>
+    <button data-panel="export"><svg class="i"><use href="#i-download"/></svg>書き出し</button>
+  </nav>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" multiple hidden>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="drop-overlay" id="dropOverlay" hidden>ここに写真をドロップ</div>
+
+<div class="modal" id="exportModal" hidden role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="exportTitle">書き出し</h3>
+      <button class="btn ghost small" data-close aria-label="閉じる"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body" id="exportBody"></div>
+    <div class="modal-foot" id="exportFoot"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* =========================================================
+ * 定数
+ * ======================================================= */
+const PAPERS = {
+  L:    { label: 'L判',  w: 89,  h: 127 },
+  KG:   { label: 'KG',   w: 102, h: 152 },
+  '2L': { label: '2L判', w: 127, h: 178 },
+  A4:   { label: 'A4',   w: 210, h: 297 },
+};
+const DPIS = [300, 350];
+const MAX_EXPORT_PIXELS = 16_000_000; // iOS Safari のキャンバス上限対策
+const PREVIEW_MAX = 1600;              // プレビュー用に縮小する長辺(px)
+const THUMB_MAX = 240;
+const LOW_DPI = 150;                   // これを下回ると低解像度の警告
+const ROT_START = 12 * Math.PI / 180;  // ピンチ中、この角度を超えてひねったら回転を開始
+const MIN_S = 0.25, MAX_S = 12;
+
+const grid = (rows, cols) => {
+  const a = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) a.push([c / cols, r / rows, 1 / cols, 1 / rows]);
+  return a;
+};
+// 縦向きの用紙を基準に [x, y, w, h]（0〜1）で定義。横向きでは縦横を入れ替えて使う。
+const LAYOUTS = [
+  { id: '1',  cells: grid(1, 1) },
+  { id: '2a', cells: grid(2, 1) },
+  { id: '2b', cells: grid(1, 2) },
+  { id: '3a', cells: grid(3, 1) },
+  { id: '3b', cells: [[0, 0, 1, .5], [0, .5, .5, .5], [.5, .5, .5, .5]] },
+  { id: '3c', cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, 1, .5]] },
+  { id: '3d', cells: [[0, 0, .5, 1], [.5, 0, .5, .5], [.5, .5, .5, .5]] },
+  { id: '4a', cells: grid(2, 2) },
+  { id: '4b', cells: grid(4, 1) },
+  { id: '4c', cells: [[0, 0, 1, .6], [0, .6, 1/3, .4], [1/3, .6, 1/3, .4], [2/3, .6, 1/3, .4]] },
+  { id: '5a', cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, 1/3, .5], [1/3, .5, 1/3, .5], [2/3, .5, 1/3, .5]] },
+  { id: '6a', cells: grid(3, 2) },
+  { id: '6b', cells: grid(2, 3) },
+  { id: '8a', cells: grid(4, 2) },
+  { id: '9a', cells: grid(3, 3) },
+  { id: '12a', cells: grid(4, 3) },
+];
+
+/* =========================================================
+ * 状態
+ * ======================================================= */
+const state = {
+  paper: '2L',
+  orient: 'portrait',
+  layout: '4a',
+  custom: { rows: 2, cols: 2 },
+  frame: { enabled: true, outer: 4, gap: 3, radius: 0, color: '#ffffff', cutGuide: false },
+  export: { dpi: 350, format: 'jpeg' },
+};
+const photos = [];      // {id, name, url, w, h, thumbUrl, prev}
+let cells = [];         // {photoId, s, r, tx, ty, flip}  ※レイアウト切替で消えないよう多めに保持
+let selected = -1;
+let swapFrom = -1;
+let activePanel = null;
+let photoSeq = 0;
+let loadingCount = 0, loadingTotal = 0;
+
+const SETTINGS_KEY = 'collage-settings-v1';
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+    if (!s) return;
+    if (PAPERS[s.paper]) state.paper = s.paper;
+    if (s.orient === 'portrait' || s.orient === 'landscape') state.orient = s.orient;
+    if (s.layout === 'custom' || LAYOUTS.some(l => l.id === s.layout)) state.layout = s.layout;
+    if (s.custom) state.custom = { rows: clamp(+s.custom.rows || 2, 1, 6), cols: clamp(+s.custom.cols || 2, 1, 6) };
+    if (s.frame) Object.assign(state.frame, s.frame);
+    if (s.export) Object.assign(state.export, s.export);
+  } catch (_) { /* 使えない環境では既定値 */ }
+}
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(state)); } catch (_) {}
+}
+
+const emptyCell = () => ({ photoId: null, s: 1, r: 0, tx: 0, ty: 0, flip: false });
+
+/* =========================================================
+ * ユーティリティ
+ * ======================================================= */
+const $ = (s, root = document) => root.querySelector(s);
+const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const icon = (name, cls = 'i') => `<svg class="${cls}"><use href="#i-${name}"/></svg>`;
+const getPath = (o, p) => p.split('.').reduce((a, k) => a[k], o);
+const setPath = (o, p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.reduce((a, k) => a[k], o)[last] = v; };
+const photoById = id => photos.find(p => p.id === id);
+const normAngle = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
+const fmtMm = v => `${(+v).toFixed(1)} mm`;
+
+function toast(msg, opts = {}) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (opts.error ? ' error' : '');
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, opts.duration || 2400);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('decode'));
+    img.src = src;
+  });
+}
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob')), type, quality));
+}
+async function downscale(img, max, quality) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const k = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * k));
+  c.height = Math.max(1, Math.round(h * k));
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const blob = await canvasToBlob(c, 'image/jpeg', quality);
+  c.width = c.height = 0; // メモリ解放
+  return blob;
+}
+
+/* =========================================================
+ * ジオメトリ（単位: mm）
+ * ======================================================= */
+function layoutRects() {
+  if (state.layout === 'custom') return grid(state.custom.rows, state.custom.cols);
+  return orientRects((LAYOUTS.find(l => l.id === state.layout) || LAYOUTS[0]).cells);
+}
+function orientRects(rects) {
+  if (state.orient === 'portrait') return rects;
+  return rects.map(([x, y, w, h]) => [y, x, h, w]).sort((a, b) => (a[1] - b[1]) || (a[0] - b[0]));
+}
+function paperSize() {
+  const p = PAPERS[state.paper];
+  return state.orient === 'portrait' ? { W: p.w, H: p.h } : { W: p.h, H: p.w };
+}
+function geometry() {
+  const { W, H } = paperSize();
+  const f = state.frame;
+  const o = f.enabled ? +f.outer : 0;
+  const g = f.enabled ? +f.gap : 0;
+  const cw = W - 2 * o, ch = H - 2 * o, e = 1e-6;
+  const rects = layoutRects().map(([fx, fy, fw, fh]) => {
+    const inL = fx > e, inT = fy > e, inR = fx + fw < 1 - e, inB = fy + fh < 1 - e;
+    let l = o + fx * cw, t = o + fy * ch, r = o + (fx + fw) * cw, b = o + (fy + fh) * ch;
+    if (inL) l += g / 2; if (inT) t += g / 2; if (inR) r -= g / 2; if (inB) b -= g / 2;
+    return { x: l, y: t, w: Math.max(0.5, r - l), h: Math.max(0.5, b - t), inL, inT, inR, inB };
+  });
+  return { W, H, g, rects, radius: f.enabled ? +f.radius : 0, bg: f.color || '#ffffff' };
+}
+function ensureCells(n) { while (cells.length < n) cells.push(emptyCell()); }
+const activeCount = () => layoutRects().length;
+
+// 回転していても枠を必ず覆う最小倍率（画像1pxあたりの長さ）
+function coverBase(iw, ih, w, h, r) {
+  const c = Math.abs(Math.cos(r)), s = Math.abs(Math.sin(r));
+  return Math.max((w * c + h * s) / iw, (w * s + h * c) / ih);
+}
+
+/* =========================================================
+ * 描画
+ * ======================================================= */
+function roundRectPath(ctx, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawBackground(ctx, geo) {
+  ctx.fillStyle = geo.bg;
+  ctx.fillRect(0, 0, geo.W, geo.H);
+}
+function drawCellImage(ctx, geo, rc, cell, ph, img) {
+  ctx.save();
+  roundRectPath(ctx, rc.x, rc.y, rc.w, rc.h, geo.radius);
+  ctx.clip();
+  const k = coverBase(ph.w, ph.h, rc.w, rc.h, cell.r) * cell.s;
+  ctx.translate(rc.x + rc.w / 2 + cell.tx * rc.w, rc.y + rc.h / 2 + cell.ty * rc.h);
+  ctx.rotate(cell.r);
+  if (cell.flip) ctx.scale(-1, 1);
+  ctx.scale(k, k);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, -ph.w / 2, -ph.h / 2, ph.w, ph.h);
+  ctx.restore();
+}
+function drawGuides(ctx, geo) {
+  const g = geo.g;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,.35)';
+  ctx.lineWidth = 0.15;
+  ctx.setLineDash([1.2, 1]);
+  ctx.beginPath();
+  for (const rc of geo.rects) {
+    const top = rc.y - (rc.inT ? g / 2 : 0), bottom = rc.y + rc.h + (rc.inB ? g / 2 : 0);
+    const left = rc.x - (rc.inL ? g / 2 : 0), right = rc.x + rc.w + (rc.inR ? g / 2 : 0);
+    if (rc.inR) { ctx.moveTo(right, top); ctx.lineTo(right, bottom); }
+    if (rc.inB) { ctx.moveTo(left, bottom); ctx.lineTo(right, bottom); }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+const canvas = $('#canvas');
+const ctx = canvas.getContext('2d');
+let renderQueued = false;
+function requestRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderPreview(); });
+}
+function renderPreview() {
+  const geo = geometry();
+  const sc = canvas.width / geo.W;
+  ctx.setTransform(sc, 0, 0, sc, 0, 0);
+  drawBackground(ctx, geo);
+  geo.rects.forEach((rc, i) => {
+    const cell = cells[i];
+    const ph = cell && photoById(cell.photoId);
+    if (ph && ph.prev) drawCellImage(ctx, geo, rc, cell, ph, ph.prev);
+  });
+  if (state.frame.cutGuide) drawGuides(ctx, geo);
+  if (selected >= 0) updateSliders();
+}
+
+/* =========================================================
+ * プレビューのレイアウト
+ * ======================================================= */
+const stage = $('#stage'), paperEl = $('#paper'), cellsEl = $('#cells');
+let pxPerMm = 1;
+function layoutPaper() {
+  const { W, H } = paperSize();
+  const pad = stage.clientWidth < 600 ? 14 : 28;
+  const aw = Math.max(50, stage.clientWidth - pad * 2), ah = Math.max(50, stage.clientHeight - pad * 2);
+  const k = Math.min(aw / W, ah / H);
+  const w = Math.floor(W * k), h = Math.floor(H * k);
+  paperEl.style.width = w + 'px';
+  paperEl.style.height = h + 'px';
+  pxPerMm = w / W;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  updateOverlay();
+  renderPreview();
+}
+new ResizeObserver(() => layoutPaper()).observe(stage);
+
+function updateOverlay() {
+  const geo = geometry();
+  const n = geo.rects.length;
+  ensureCells(n);
+  if (selected >= n) selected = -1;
+  if (swapFrom >= n) swapFrom = -1;
+  while (cellsEl.children.length > n) cellsEl.lastChild.remove();
+  while (cellsEl.children.length < n) {
+    const el = document.createElement('div');
+    el.className = 'cell';
+    cellsEl.appendChild(el);
+  }
+  geo.rects.forEach((rc, i) => {
+    const el = cellsEl.children[i];
+    el.dataset.idx = i;
+    el.style.left = (rc.x / geo.W * 100) + '%';
+    el.style.top = (rc.y / geo.H * 100) + '%';
+    el.style.width = (rc.w / geo.W * 100) + '%';
+    el.style.height = (rc.h / geo.H * 100) + '%';
+    el.style.borderRadius = Math.min(geo.radius, rc.w / 2, rc.h / 2) * pxPerMm + 'px';
+    const cell = cells[i];
+    const ph = photoById(cell.photoId);
+    el.classList.toggle('empty', !ph);
+    el.classList.toggle('selected', i === selected);
+    el.classList.toggle('swap-src', i === swapFrom);
+    let html = `<span class="num">${i + 1}</span>`;
+    if (!ph) {
+      const big = rc.w * pxPerMm > 70 && rc.h * pxPerMm > 60;
+      html += `<div class="empty-inner">${icon('plus')}${big ? '<span>写真</span>' : ''}</div>`;
+    } else {
+      const dpi = 25.4 / (coverBase(ph.w, ph.h, rc.w, rc.h, cell.r) * cell.s);
+      if (dpi < LOW_DPI) html += `<span class="lowres" title="印刷時の解像度が約${Math.round(dpi)}dpiです">${icon('alert')}低解像度</span>`;
+    }
+    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+    el.setAttribute('aria-label', `枠 ${i + 1}${ph ? '（写真あり）' : '（空）'}`);
+  });
+}
+
+/* =========================================================
+ * 写真の読み込み
+ * ======================================================= */
+const fileInput = $('#fileInput');
+function openPicker() { fileInput.value = ''; fileInput.click(); }
+fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
+
+async function addFiles(files) {
+  files = files.filter(f => f.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif|avif|bmp)$/i.test(f.name));
+  if (!files.length) return;
+  loadingTotal += files.length;
+  renderTray();
+  let failed = 0;
+  for (const file of files) {
+    try {
+      photos.push(await createPhoto(file));
+    } catch (e) {
+      failed++;
+    }
+    loadingCount++;
+    renderTray();
+  }
+  if (loadingCount >= loadingTotal) { loadingCount = loadingTotal = 0; }
+  refresh();
+  if (failed) toast(`${failed}枚の写真を読み込めませんでした（未対応の形式の可能性があります）`, { error: true, duration: 4000 });
+}
+
+async function createPhoto(file) {
+  const url = URL.createObjectURL(file);
+  let img;
+  try { img = await loadImage(url); } catch (e) { URL.revokeObjectURL(url); throw e; }
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!w || !h) { URL.revokeObjectURL(url); throw new Error('size'); }
+  const thumbUrl = URL.createObjectURL(await downscale(img, THUMB_MAX, 0.8));
+  let prev = img;
+  if (Math.max(w, h) > PREVIEW_MAX) {
+    prev = await loadImage(URL.createObjectURL(await downscale(img, PREVIEW_MAX, 0.9)));
+    img.src = ''; // 元画像のデコード結果を手放す（書き出し時に再読込）
+  }
+  return { id: ++photoSeq, name: file.name, url, w, h, thumbUrl, prev };
+}
+
+function removePhoto(id) {
+  const ph = photoById(id);
+  if (!ph) return;
+  cells.forEach(c => { if (c.photoId === id) Object.assign(c, emptyCell()); });
+  photos.splice(photos.indexOf(ph), 1);
+  URL.revokeObjectURL(ph.url);
+  URL.revokeObjectURL(ph.thumbUrl);
+  if (ph.prev && ph.prev.src && ph.prev.src.startsWith('blob:') && ph.prev.src !== ph.url) URL.revokeObjectURL(ph.prev.src);
+  refresh();
+}
+
+/* =========================================================
+ * 配置・編集操作
+ * ======================================================= */
+function usageCounts() {
+  const n = activeCount(), m = new Map();
+  for (let i = 0; i < n; i++) { const id = cells[i] && cells[i].photoId; if (id && photoById(id)) m.set(id, (m.get(id) || 0) + 1); }
+  return m;
+}
+function firstEmpty(after = -1) {
+  const n = activeCount();
+  for (let k = 1; k <= n; k++) {
+    const i = (after + k) % n;
+    if (!photoById(cells[i].photoId)) return i;
+  }
+  return -1;
+}
+function placePhoto(idx, photoId) {
+  const wasEmpty = !photoById(cells[idx].photoId);
+  Object.assign(cells[idx], emptyCell(), { photoId });
+  // 空き枠を順に埋めているときは次の空き枠へ選択を進める
+  const next = wasEmpty ? firstEmpty(idx) : -1;
+  selected = next >= 0 ? next : idx;
+  refresh();
+}
+function placeFromTray(photoId) {
+  let idx = selected;
+  if (idx < 0) idx = firstEmpty();
+  if (idx < 0) { toast('入れ替える枠をタップして選んでください'); return; }
+  placePhoto(idx, photoId);
+}
+function autoFill() {
+  const used = usageCounts();
+  const queue = photos.filter(p => !used.has(p.id));
+  const n = activeCount();
+  let placed = 0;
+  for (let i = 0; i < n && queue.length; i++) {
+    if (!photoById(cells[i].photoId)) { Object.assign(cells[i], emptyCell(), { photoId: queue.shift().id }); placed++; }
+  }
+  if (!placed) toast(photos.length ? '空いている枠か未使用の写真がありません' : 'まず写真を追加してください');
+  refresh();
+}
+function select(i) {
+  selected = i;
+  refresh();
+}
+function rotateCell(i, dir = 1) {
+  const c = cells[i]; const rc = geometry().rects[i];
+  const tx = c.tx * rc.w, ty = c.ty * rc.h; // オフセットも一緒に回す
+  c.r = snapQuarter(c.r + dir * QUARTER);
+  c.tx = (-dir * ty) / rc.w; c.ty = (dir * tx) / rc.h;
+  settleCell(i, false);
+  refresh();
+}
+function flipCell(i) {
+  const c = cells[i];
+  // 画面上で左右反転になるよう、回転角とオフセットも反転させる
+  c.flip = !c.flip; c.r = -c.r; c.tx = -c.tx;
+  refresh();
+}
+function resetCell(i) {
+  const c = cells[i];
+  Object.assign(c, { s: 1, tx: 0, ty: 0, r: snapQuarter(c.r) });
+  refresh();
+}
+function clearCell(i) {
+  Object.assign(cells[i], emptyCell());
+  refresh();
+}
+function swapCells(a, b) {
+  [cells[a], cells[b]] = [cells[b], cells[a]];
+  swapFrom = -1;
+  selected = b;
+  refresh();
+}
+
+// 回転は 0 / 90 / 180 / 270° のいずれかに吸着させ、隙間ができないよう位置を枠内に収める
+const QUARTER = Math.PI / 2;
+const snapQuarter = r => normAngle(Math.round(r / QUARTER) * QUARTER);
+function settledState(i, c) {
+  const ph = photoById(c.photoId), rc = geometry().rects[i];
+  const r = snapQuarter(c.r);
+  // 見た目の大きさ（画像1pxあたりの長さ）を保ったまま角度だけ揃える
+  const k = coverBase(ph.w, ph.h, rc.w, rc.h, c.r) * c.s;
+  const base = coverBase(ph.w, ph.h, rc.w, rc.h, r);
+  const s = clamp(k / base, MIN_S, MAX_S);
+  let dw = ph.w * base * s, dh = ph.h * base * s;
+  if (Math.round(r / QUARTER) % 2) [dw, dh] = [dh, dw];
+  const mx = Math.max(0, (dw - rc.w) / 2) / rc.w, my = Math.max(0, (dh - rc.h) / 2) / rc.h;
+  return { r, s, tx: clamp(c.tx, -mx, mx), ty: clamp(c.ty, -my, my) };
+}
+let settleAnim = null;
+function settleCell(i, animate = true) {
+  const c = cells[i];
+  if (!photoById(c.photoId)) return;
+  const to = settledState(i, c);
+  // 角度の差は最短方向で補間
+  const from = { r: c.r, s: c.s, tx: c.tx, ty: c.ty };
+  const dr = normAngle(to.r - from.r);
+  if (Math.abs(dr) < 1e-6 && Math.abs(to.s - from.s) < 1e-6 && Math.abs(to.tx - from.tx) < 1e-6 && Math.abs(to.ty - from.ty) < 1e-6) return;
+  if (settleAnim) cancelAnimationFrame(settleAnim);
+  if (!animate) { Object.assign(c, to); return; }
+  const t0 = performance.now(), dur = 200;
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - t, 3);
+    c.r = t < 1 ? from.r + dr * e : to.r;
+    c.s = from.s + (to.s - from.s) * e;
+    c.tx = from.tx + (to.tx - from.tx) * e;
+    c.ty = from.ty + (to.ty - from.ty) * e;
+    renderPreview();
+    settleAnim = t < 1 ? requestAnimationFrame(step) : null;
+    if (!settleAnim) updateOverlay();
+  };
+  settleAnim = requestAnimationFrame(step);
+}
+
+/* =========================================================
+ * ジェスチャー（パン・ピンチ・回転）
+ * ======================================================= */
+const gest = { idx: -1, pointers: new Map(), snap: null, moved: false, multi: false, start: null, downAt: 0, bg: false, acc: 0, lastA: 0 };
+let lastTap = { idx: -1, t: 0 };
+
+function cellRectClient(i) {
+  const pr = paperEl.getBoundingClientRect();
+  const geo = geometry();
+  const k = pr.width / geo.W;
+  const rc = geo.rects[i];
+  return { x: pr.left + rc.x * k, y: pr.top + rc.y * k, w: rc.w * k, h: rc.h * k };
+}
+function pointerGeom() {
+  const pts = [...gest.pointers.values()];
+  const c = { x: 0, y: 0 };
+  pts.forEach(p => { c.x += p.x / pts.length; c.y += p.y / pts.length; });
+  let d = 0, a = 0;
+  if (pts.length > 1) {
+    d = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    a = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
+  }
+  return { c, d, a, n: pts.length };
+}
+function snapshotGesture() {
+  const cell = cells[gest.idx];
+  const ph = cell && photoById(cell.photoId);
+  if (!ph) { gest.snap = null; return; }
+  const g = pointerGeom();
+  const rc = cellRectClient(gest.idx);
+  gest.snap = {
+    ...g, rc, ph,
+    r: cell.r,
+    k: coverBase(ph.w, ph.h, rc.w, rc.h, cell.r) * cell.s,
+    px: rc.x + rc.w / 2 + cell.tx * rc.w,
+    py: rc.y + rc.h / 2 + cell.ty * rc.h,
+  };
+  gest.acc = 0;
+  gest.lastA = g.a;
+  gest.rotating = false;
+}
+// アンカー点 c0 を c1 へ移しつつ ds 倍・dr 回転させる
+function applyTransform(i, sn, c1, ds, dr) {
+  const cell = cells[i], { ph, rc } = sn;
+  let r = sn.r + dr;
+  const base = coverBase(ph.w, ph.h, rc.w, rc.h, r);
+  const k = clamp(sn.k * ds, base * MIN_S, base * MAX_S);
+  ds = k / sn.k;
+  const cos = Math.cos(r - sn.r), sin = Math.sin(r - sn.r);
+  const vx = sn.px - sn.c.x, vy = sn.py - sn.c.y;
+  const px = c1.x + ds * (cos * vx - sin * vy);
+  const py = c1.y + ds * (sin * vx + cos * vy);
+  cell.r = r;
+  cell.s = k / base;
+  cell.tx = (px - (rc.x + rc.w / 2)) / rc.w;
+  cell.ty = (py - (rc.y + rc.h / 2)) / rc.h;
+  requestRender();
+}
+
+function showRotateHint(r) {
+  const h = $('#stageHint');
+  if (r === null) { if (swapFrom < 0) h.hidden = true; return; }
+  let deg = Math.round(r * 180 / Math.PI);
+  if (deg < 0) deg += 360;
+  h.textContent = `回転 ${deg}°`;
+  h.hidden = false;
+}
+stage.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const cellEl = e.target.closest('.cell');
+  if (gest.pointers.size === 0) {
+    gest.bg = !cellEl;
+    gest.idx = cellEl ? +cellEl.dataset.idx : -1;
+    gest.moved = false; gest.multi = false;
+    gest.start = { x: e.clientX, y: e.clientY };
+    gest.downAt = performance.now();
+    if (settleAnim) { cancelAnimationFrame(settleAnim); settleAnim = null; }
+    if (cellEl && swapFrom < 0 && selected !== gest.idx && photoById(cells[gest.idx].photoId)) {
+      selected = gest.idx; // 触った写真をすぐに選択状態に
+      refresh();
+    }
+  } else if (gest.idx < 0) {
+    return;
+  }
+  try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+  gest.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (gest.pointers.size > 1) gest.multi = true;
+  if (gest.idx >= 0) snapshotGesture();
+});
+stage.addEventListener('pointermove', e => {
+  const p = gest.pointers.get(e.pointerId);
+  if (!p) return;
+  p.x = e.clientX; p.y = e.clientY;
+  if (!gest.moved && Math.hypot(e.clientX - gest.start.x, e.clientY - gest.start.y) > 6) gest.moved = true;
+  if (gest.idx < 0 || !gest.snap || swapFrom >= 0) return;
+  if (!gest.moved && !gest.multi) return;
+  const g = pointerGeom(), sn = gest.snap;
+  let ds = 1, dr = 0;
+  if (g.n > 1 && sn.n > 1 && sn.d > 0) {
+    ds = g.d / sn.d;
+    gest.acc += normAngle(g.a - gest.lastA);
+    gest.lastA = g.a;
+    // 小さなひねりは無視（拡大だけしたいときに回らないように）。離すと90°単位に吸着
+    if (Math.abs(gest.acc) > ROT_START) gest.rotating = true;
+    if (gest.rotating) dr = gest.acc;
+    showRotateHint(dr ? snapQuarter(sn.r + dr) : null);
+  }
+  applyTransform(gest.idx, sn, g.c, ds, dr);
+});
+function endPointer(e) {
+  if (!gest.pointers.has(e.pointerId)) return;
+  gest.pointers.delete(e.pointerId);
+  if (gest.pointers.size > 0) { if (gest.idx >= 0) snapshotGesture(); return; }
+  const isTap = e.type === 'pointerup' && !gest.moved && !gest.multi && performance.now() - gest.downAt < 600;
+  const idx = gest.idx;
+  gest.idx = -1; gest.snap = null;
+  if (idx >= 0 && (gest.moved || gest.multi)) { showRotateHint(null); settleCell(idx); updateOverlay(); updateSliders(); }
+  if (!isTap) return;
+  if (gest.bg) {
+    if (swapFrom >= 0) { swapFrom = -1; }
+    selected = -1;
+    refresh();
+    return;
+  }
+  onCellTap(idx);
+}
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', endPointer);
+
+function onCellTap(idx) {
+  if (activePanel && !matchMedia('(min-width: 900px) and (min-height: 521px)').matches) { activePanel = null; updatePanels(); }
+  if (swapFrom >= 0) {
+    if (swapFrom === idx) { swapFrom = -1; refresh(); }
+    else swapCells(swapFrom, idx);
+    return;
+  }
+  const hasPhoto = !!photoById(cells[idx].photoId);
+  const now = performance.now();
+  if (hasPhoto && lastTap.idx === idx && now - lastTap.t < 320) {
+    resetCell(idx);
+    lastTap = { idx: -1, t: 0 };
+    return;
+  }
+  lastTap = { idx, t: now };
+  if (!hasPhoto && photos.length === 0 && !loadingTotal) { selected = idx; refresh(); openPicker(); return; }
+  if (!hasPhoto && selected === idx) {
+    // 空き枠を2回タップ → 未使用の写真があれば下のトレイから選ぶよう案内
+    toast(photos.length ? '下の写真をタップするとこの枠に入ります' : '写真を追加してください');
+    return;
+  }
+  selected = idx;
+  refresh();
+}
+
+// マウスホイール: カーソル位置を中心に拡大縮小
+stage.addEventListener('wheel', e => {
+  const cellEl = e.target.closest('.cell');
+  if (!cellEl) return;
+  const i = +cellEl.dataset.idx;
+  const cell = cells[i], ph = photoById(cell.photoId);
+  if (!ph) return;
+  e.preventDefault();
+  if (selected !== i) { selected = i; refresh(); }
+  const rc = cellRectClient(i);
+  const c = { x: e.clientX, y: e.clientY };
+  const sn = { ph, rc, c, r: cell.r, k: coverBase(ph.w, ph.h, rc.w, rc.h, cell.r) * cell.s, px: rc.x + rc.w / 2 + cell.tx * rc.w, py: rc.y + rc.h / 2 + cell.ty * rc.h };
+  const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+  applyTransform(i, sn, c, Math.exp(-delta * 0.0015), 0);
+  clearTimeout(stage._wheelT);
+  stage._wheelT = setTimeout(() => { settleCell(i); updateOverlay(); }, 250);
+}, { passive: false });
+
+// iOS Safari のページ拡大を防止
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+
+/* =========================================================
+ * トレイ（写真一覧）とドラッグ＆ドロップ
+ * ======================================================= */
+const trayList = $('#trayList');
+function renderTray() {
+  const used = usageCounts();
+  const unused = photos.filter(p => !used.has(p.id)).length;
+  $('#trayCount').textContent = photos.length ? `${photos.length}枚（未使用 ${unused}）` : '';
+  $('#autoFillBtn').disabled = !photos.length;
+  $('#clearPhotosBtn').disabled = !photos.length;
+  if (!photos.length && !loadingTotal) {
+    trayList.innerHTML = `<button class="tray-empty" data-act="add">
+      <span class="ico">${icon('images')}</span>
+      <span><strong>写真を選ぶ</strong><span>複数枚まとめて選べます。選んだ写真は下に並び、枠にタップ／ドラッグで配置します。</span></span>
+    </button>`;
+    return;
+  }
+  const parts = [`<button class="add-tile" data-act="add" aria-label="写真を追加">${icon('plus')}追加</button>`];
+  for (const p of photos) {
+    const u = used.get(p.id) || 0;
+    parts.push(`<div class="thumb${u ? ' used' : ''}" role="button" tabindex="0" data-id="${p.id}" aria-label="${escapeHtml(p.name)}">
+      <img src="${p.thumbUrl}" alt="" draggable="false">
+      ${u ? `<span class="badge">${icon('check')}${u > 1 ? u : ''}</span>` : ''}
+      <button class="rm" data-rm="${p.id}" aria-label="この写真を削除">${icon('x')}</button>
+    </div>`);
+  }
+  if (loadingTotal) parts.push(`<div class="thumb loading" title="読み込み中 ${loadingCount}/${loadingTotal}"><div class="spinner sm"></div></div>`);
+  const scroll = trayList.scrollLeft;
+  trayList.innerHTML = parts.join('');
+  trayList.scrollLeft = scroll;
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+let suppressClick = false;
+trayList.addEventListener('click', e => {
+  if (suppressClick) { suppressClick = false; return; }
+  const rm = e.target.closest('[data-rm]');
+  if (rm) { e.stopPropagation(); removePhoto(+rm.dataset.rm); return; }
+  if (e.target.closest('[data-act="add"]')) { openPicker(); return; }
+  const th = e.target.closest('.thumb[data-id]');
+  if (th) placeFromTray(+th.dataset.id);
+});
+trayList.addEventListener('keydown', e => {
+  const th = e.target.closest('.thumb[data-id]');
+  if (th && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); placeFromTray(+th.dataset.id); }
+  if (th && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); removePhoto(+th.dataset.id); }
+});
+
+// トレイ → 枠 へのドラッグ（マウスは任意方向、タッチは上方向へ引き出すと開始）
+let drag = null;
+trayList.addEventListener('pointerdown', e => {
+  const th = e.target.closest('.thumb[data-id]');
+  if (!th || e.target.closest('.rm')) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (drag) clearTimeout(drag.timer);
+  drag = { id: +th.dataset.id, pid: e.pointerId, sx: e.clientX, sy: e.clientY, type: e.pointerType, active: false, ghost: null, over: -1, src: th, longPress: false, timer: 0 };
+  if (e.pointerType !== 'mouse') {
+    // 長押しでもドラッグ開始できる（横方向に動かす前に）
+    const d = drag;
+    d.timer = setTimeout(() => { if (drag === d && !d.active) { d.longPress = true; startDrag(d, d.sx, d.sy); } }, 380);
+  }
+});
+// タッチ: 縦方向に引き出す／長押し中はトレイのスクロールを止める
+trayList.addEventListener('touchmove', e => {
+  if (!drag || drag.type === 'mouse') return;
+  const t = e.touches[0];
+  const dx = t.clientX - drag.sx, dy = t.clientY - drag.sy;
+  if (drag.active || Math.abs(dy) > Math.abs(dx)) { if (e.cancelable) e.preventDefault(); }
+}, { passive: false });
+trayList.addEventListener('contextmenu', e => { if (e.target.closest('.thumb')) e.preventDefault(); });
+function startDrag(d, x, y) {
+  d.active = true;
+  clearTimeout(d.timer);
+  try { d.src.setPointerCapture(d.pid); } catch (_) {}
+  const ph = photoById(d.id);
+  d.ghost = document.createElement('div');
+  d.ghost.className = 'drag-ghost';
+  d.ghost.innerHTML = `<img src="${ph.thumbUrl}" alt="">`;
+  document.body.appendChild(d.ghost);
+  moveGhost(d, x, y);
+  if (navigator.vibrate && d.longPress) navigator.vibrate(10);
+}
+function moveGhost(d, x, y) {
+  d.ghost.style.transform = `translate(${x - 38}px, ${y - 60}px) rotate(-4deg)`;
+  const el = document.elementFromPoint(x, y);
+  const cellEl = el && el.closest && el.closest('.cell');
+  const over = cellEl ? +cellEl.dataset.idx : -1;
+  if (over !== d.over) {
+    $$('.cell.drop-target').forEach(c => c.classList.remove('drop-target'));
+    if (cellEl) cellEl.classList.add('drop-target');
+    d.over = over;
+  }
+}
+window.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.active) {
+    if (Math.hypot(dx, dy) < 8) return;
+    if (drag.type !== 'mouse' && Math.abs(dy) < Math.abs(dx)) { clearTimeout(drag.timer); drag = null; return; } // 横方向はスクロール
+    startDrag(drag, e.clientX, e.clientY);
+  }
+  e.preventDefault();
+  moveGhost(drag, e.clientX, e.clientY);
+}, { passive: false });
+function endDrag(e) {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const d = drag; drag = null;
+  clearTimeout(d.timer);
+  if (!d.active) return;
+  d.ghost.remove();
+  $$('.cell.drop-target').forEach(c => c.classList.remove('drop-target'));
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 0);
+  if (e.type === 'pointerup' && d.over >= 0) placePhoto(d.over, d.id);
+}
+window.addEventListener('pointerup', endDrag);
+window.addEventListener('pointercancel', endDrag);
+
+// デスクトップ: ファイルをウィンドウにドロップして追加
+let dragDepth = 0;
+const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+window.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; $('#dropOverlay').hidden = false; });
+window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; $('#dropOverlay').hidden = true; } });
+window.addEventListener('drop', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0; $('#dropOverlay').hidden = true;
+  addFiles([...e.dataTransfer.files]);
+});
+
+/* =========================================================
+ * ツールバー
+ * ======================================================= */
+const toolbar = $('#toolbar');
+function renderToolbar() {
+  const stageHint = $('#stageHint');
+  if (swapFrom >= 0) {
+    stageHint.textContent = '入れ替え先の枠をタップ';
+    stageHint.hidden = false;
+  } else {
+    stageHint.hidden = true;
+  }
+  if (selected < 0) {
+    toolbar.innerHTML = photos.length
+      ? `<div class="hint"><b>枠をタップ</b>して選択 → 下の写真をタップ（またはドラッグ）で配置。<b>ドラッグ</b>で位置調整、<b>2本指</b>で拡大・回転。</div>`
+      : `<div class="hint">まず<b>写真を選んで</b>ください。複数枚まとめて追加し、あとから枠にはめていきます。</div>`;
+    return;
+  }
+  const has = !!photoById(cells[selected].photoId);
+  const dis = has ? '' : 'disabled';
+  toolbar.innerHTML = `
+    <span class="sel-label">枠 ${selected + 1}</span>
+    <button class="tool" data-tool="rotate" ${dis} title="90°回転 (R)">${icon('rotate')}回転</button>
+    <button class="tool" data-tool="flip" ${dis} title="左右反転">${icon('flip')}反転</button>
+    <button class="tool" data-tool="reset" ${dis} title="位置と拡大をリセット（ダブルタップ）">${icon('reset')}リセット</button>
+    <button class="tool${swapFrom >= 0 ? ' active' : ''}" data-tool="swap" title="他の枠と入れ替え">${icon('swap')}入れ替え</button>
+    <button class="tool danger" data-tool="clear" ${dis} title="枠から外す (Delete)">${icon('trash')}外す</button>
+    <span class="tool-sep"></span>
+    <button class="tool" data-tool="close" title="選択解除 (Esc)">${icon('x')}閉じる</button>
+    <div class="sliders">
+      <label>拡大 <input type="range" id="zoomSlider" min="${Math.log(MIN_S)}" max="${Math.log(MAX_S)}" step="0.01" ${dis}><output id="zoomOut"></output></label>
+    </div>`;
+  updateSliders();
+}
+function updateSliders() {
+  const zs = $('#zoomSlider');
+  if (!zs || selected < 0) return;
+  const c = cells[selected];
+  if (document.activeElement !== zs) zs.value = Math.log(c.s);
+  $('#zoomOut').textContent = Math.round(c.s * 100) + '%';
+}
+toolbar.addEventListener('click', e => {
+  const b = e.target.closest('[data-tool]');
+  if (!b || selected < 0) return;
+  const i = selected;
+  switch (b.dataset.tool) {
+    case 'rotate': rotateCell(i); break;
+    case 'flip': flipCell(i); break;
+    case 'reset': resetCell(i); break;
+    case 'clear': clearCell(i); break;
+    case 'swap': swapFrom = swapFrom >= 0 ? -1 : i; refresh(); break;
+    case 'close': selected = -1; swapFrom = -1; refresh(); break;
+  }
+});
+toolbar.addEventListener('input', e => {
+  if (selected < 0) return;
+  const c = cells[selected];
+  if (e.target.id === 'zoomSlider') c.s = Math.exp(+e.target.value);
+  requestRender();
+});
+toolbar.addEventListener('change', e => {
+  if (selected >= 0 && e.target.id === 'zoomSlider') { settleCell(selected); updateOverlay(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea, select') && e.target.type !== 'range') return;
+  if (!$('#exportModal').hidden) { if (e.key === 'Escape') closeModal(); return; }
+  if (e.key === 'Escape') { selected = -1; swapFrom = -1; refresh(); return; }
+  if (selected < 0 || e.target.closest('.tray-list')) return;
+  const has = photoById(cells[selected].photoId);
+  if ((e.key === 'Delete' || e.key === 'Backspace') && has) { e.preventDefault(); clearCell(selected); }
+  else if ((e.key === 'r' || e.key === 'R') && has && !e.metaKey && !e.ctrlKey) rotateCell(selected, e.shiftKey ? -1 : 1);
+});
+
+/* =========================================================
+ * 設定パネル
+ * ======================================================= */
+function buildPanels() {
+  $('[data-seg="paper"]').innerHTML = Object.entries(PAPERS)
+    .map(([k, p]) => `<button data-v="${k}">${p.label}</button>`).join('');
+  $$('.panel h2').forEach(h => h.insertAdjacentHTML('beforeend', '<button class="btn small sheet-done" data-close-panel>完了</button>'));
+  $('[data-seg="dpi"]').innerHTML = DPIS.map(d => `<button data-v="${d}">${d} dpi<small></small></button>`).join('');
+}
+function renderLayouts() {
+  const { W, H } = paperSize();
+  const s = 40 / Math.max(W, H);
+  const w = W * s, h = H * s;
+  const icons = LAYOUTS.map(L => ({ id: L.id, rects: orientRects(L.cells) }));
+  icons.push({ id: 'custom', rects: grid(state.custom.rows, state.custom.cols) });
+  $('#layouts').innerHTML = icons.map(L => {
+    const inset = 2.5, gap = 1.6;
+    const cw = w - inset * 2, ch = h - inset * 2;
+    const rects = L.rects.map(([x, y, rw, rh]) => {
+      const e = 1e-6;
+      let l = inset + x * cw, t = inset + y * ch, r = inset + (x + rw) * cw, b = inset + (y + rh) * ch;
+      if (x > e) l += gap / 2; if (y > e) t += gap / 2; if (x + rw < 1 - e) r -= gap / 2; if (y + rh < 1 - e) b -= gap / 2;
+      return `<rect class="c" x="${l.toFixed(2)}" y="${t.toFixed(2)}" width="${(r - l).toFixed(2)}" height="${(b - t).toFixed(2)}" rx="0.6"/>`;
+    }).join('');
+    const label = L.id === 'custom' ? 'カスタム' : `${L.rects.length}枚`;
+    return `<button class="layout-btn${state.layout === L.id ? ' on' : ''}" data-layout="${L.id}" aria-label="${label}">
+      <svg viewBox="0 0 ${w.toFixed(2)} ${h.toFixed(2)}" style="width:${w.toFixed(1)}px"><rect class="p" x=".5" y=".5" width="${(w - 1).toFixed(2)}" height="${(h - 1).toFixed(2)}" rx="1.5"/>${rects}</svg>${label}</button>`;
+  }).join('');
+}
+function updatePanels() {
+  $$('.seg[data-seg]').forEach(seg => {
+    const key = seg.dataset.seg;
+    const val = String(key === 'dpi' ? state.export.dpi : key === 'format' ? state.export.format : state[key]);
+    $$('button', seg).forEach(b => b.classList.toggle('on', b.dataset.v === val));
+  });
+  const { W, H } = paperSize();
+  $('#paperDims').textContent = `${W} × ${H} mm`;
+  $('#layoutCount').textContent = `${activeCount()}枚`;
+  $('#customGrid').style.display = state.layout === 'custom' ? '' : 'none';
+  $('#rowsVal').textContent = state.custom.rows;
+  $('#colsVal').textContent = state.custom.cols;
+  $$('[data-step]').forEach(b => {
+    const v = state.custom[b.dataset.step] + +b.dataset.d;
+    b.disabled = v < 1 || v > 6;
+  });
+  $$('[data-bind]').forEach(inp => {
+    const v = getPath(state, inp.dataset.bind);
+    if (inp.type === 'checkbox') inp.checked = !!v; else if (document.activeElement !== inp) inp.value = v;
+  });
+  $$('[data-out]').forEach(o => { o.textContent = fmtMm(getPath(state, o.dataset.out)); });
+  $$('[data-needs-frame]').forEach(f => f.classList.toggle('disabled', !state.frame.enabled));
+  $$('.swatch[data-color]').forEach(s => s.classList.toggle('on', s.dataset.color.toLowerCase() === state.frame.color.toLowerCase()));
+  const custom = !$$('.swatch[data-color]').some(s => s.dataset.color.toLowerCase() === state.frame.color.toLowerCase());
+  $('.swatch-custom').classList.toggle('on', custom);
+  if (custom) $('.swatch-custom').style.background = state.frame.color; else $('.swatch-custom').style.background = '';
+  $('#colorInput').value = state.frame.color;
+  // 書き出しサイズの表示
+  $$('[data-seg="dpi"] button').forEach(b => {
+    const d = exportPixels(+b.dataset.v);
+    $('small', b).textContent = `${d.w} × ${d.h} px`;
+  });
+  const d = exportPixels(state.export.dpi);
+  $('#exportSpec').textContent = `${PAPERS[state.paper].label} ${W}×${H}mm → ${d.w}×${d.h}px（${d.dpi}dpi）`;
+  // ナビ
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.panel === activePanel));
+  $$('.panel section').forEach(s => s.classList.toggle('active', s.dataset.sec === activePanel));
+  $('#app').classList.toggle('panel-open', !!activePanel);
+}
+
+$('#panel').addEventListener('click', e => {
+  if (e.target.closest('[data-close-panel]')) { activePanel = null; updatePanels(); return; }
+  const segBtn = e.target.closest('.seg[data-seg] button');
+  if (segBtn) {
+    const key = segBtn.closest('.seg').dataset.seg, v = segBtn.dataset.v;
+    if (key === 'dpi') state.export.dpi = +v;
+    else if (key === 'format') state.export.format = v;
+    else state[key] = v;
+    onSettingsChanged(key === 'paper' || key === 'orient');
+    return;
+  }
+  const lb = e.target.closest('[data-layout]');
+  if (lb) { state.layout = lb.dataset.layout; onSettingsChanged(true); return; }
+  const st = e.target.closest('[data-step]');
+  if (st) {
+    const k = st.dataset.step;
+    state.custom[k] = clamp(state.custom[k] + +st.dataset.d, 1, 6);
+    onSettingsChanged(true);
+    return;
+  }
+  const sw = e.target.closest('.swatch[data-color]');
+  if (sw) { state.frame.color = sw.dataset.color; onSettingsChanged(false); return; }
+  if (e.target.closest('#clearCellsBtn')) {
+    cells.forEach(c => Object.assign(c, emptyCell()));
+    refresh();
+  }
+});
+$('#panel').addEventListener('input', e => {
+  const b = e.target.dataset.bind;
+  if (b) {
+    setPath(state, b, e.target.type === 'checkbox' ? e.target.checked : +e.target.value);
+    onSettingsChanged(false);
+  } else if (e.target.id === 'colorInput') {
+    state.frame.color = e.target.value;
+    onSettingsChanged(false);
+  }
+});
+function onSettingsChanged(structural) {
+  saveSettings();
+  if (structural) { swapFrom = -1; renderLayouts(); layoutPaper(); }
+  refresh();
+}
+
+$('#nav').addEventListener('click', e => {
+  const b = e.target.closest('[data-panel]');
+  if (!b) return;
+  activePanel = activePanel === b.dataset.panel ? null : b.dataset.panel;
+  updatePanels();
+});
+
+$('#autoFillBtn').addEventListener('click', autoFill);
+$('#clearPhotosBtn').addEventListener('click', () => {
+  if (!confirm('読み込んだ写真をすべて削除しますか？')) return;
+  [...photos].forEach(p => removePhoto(p.id));
+  selected = -1;
+  refresh();
+});
+
+function refresh() {
+  updateOverlay();
+  renderTray();
+  renderToolbar();
+  updatePanels();
+  requestRender();
+}
+
+/* =========================================================
+ * 書き出し
+ * ======================================================= */
+function exportPixels(dpi) {
+  const { W, H } = paperSize();
+  let w = Math.round(W / 25.4 * dpi), h = Math.round(H / 25.4 * dpi);
+  if (w * h > MAX_EXPORT_PIXELS) {
+    const k = Math.sqrt(MAX_EXPORT_PIXELS / (w * h));
+    w = Math.floor(w * k); h = Math.floor(h * k); dpi = Math.floor(dpi * k);
+  }
+  return { w, h, dpi };
+}
+
+// JPEG(JFIF) / PNG(pHYs) に解像度情報を書き込む（印刷時に正しいサイズで扱われるように）
+async function withDpi(blob, dpi, type) {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  if (type === 'image/jpeg') {
+    if (buf[0] !== 0xFF || buf[1] !== 0xD8) return blob;
+    const isJfif = buf[2] === 0xFF && buf[3] === 0xE0 && String.fromCharCode(...buf.slice(6, 11)) === 'JFIF\0';
+    if (isJfif) {
+      buf[13] = 1; buf[14] = dpi >> 8; buf[15] = dpi & 255; buf[16] = dpi >> 8; buf[17] = dpi & 255;
+      return new Blob([buf], { type });
+    }
+    const app0 = new Uint8Array([0xFF, 0xE0, 0, 16, 0x4A, 0x46, 0x49, 0x46, 0, 1, 1, 1, dpi >> 8, dpi & 255, dpi >> 8, dpi & 255, 0, 0]);
+    return new Blob([buf.slice(0, 2), app0, buf.slice(2)], { type });
+  }
+  if (type === 'image/png') {
+    const ppm = Math.round(dpi / 0.0254);
+    const chunk = new Uint8Array(21);
+    const dv = new DataView(chunk.buffer);
+    dv.setUint32(0, 9);
+    chunk.set([0x70, 0x48, 0x59, 0x73], 4); // "pHYs"
+    dv.setUint32(8, ppm); dv.setUint32(12, ppm); chunk[16] = 1;
+    dv.setUint32(17, crc32(chunk.subarray(4, 17)));
+    const ihdrEnd = 8 + 4 + 4 + 13 + 4;
+    return new Blob([buf.slice(0, ihdrEnd), chunk, buf.slice(ihdrEnd)], { type });
+  }
+  return blob;
+}
+let crcTable;
+function crc32(bytes) {
+  if (!crcTable) {
+    crcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcTable[n] = c >>> 0; }
+  }
+  let c = 0xFFFFFFFF;
+  for (const b of bytes) c = crcTable[(c ^ b) & 255] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+let lastExport = null;
+async function doExport() {
+  const n = activeCount();
+  const filled = cells.slice(0, n).filter(c => photoById(c.photoId)).length;
+  if (!filled) { toast(photos.length ? '枠に写真を配置してください' : 'まず写真を追加してください'); return; }
+  openModal();
+  setModal(`<div class="result-img-wrap"><div class="spinner"></div></div><div class="result-meta">画像を作成しています…</div>`, '');
+  try {
+    const geo = geometry();
+    const px = exportPixels(state.export.dpi);
+    const c = document.createElement('canvas');
+    c.width = px.w; c.height = px.h;
+    const x = c.getContext('2d');
+    x.setTransform(px.w / geo.W, 0, 0, px.h / geo.H, 0, 0);
+    drawBackground(x, geo);
+    let lowres = 0;
+    // 1枚ずつ元画像を読み込んで描画（メモリ節約）
+    for (let i = 0; i < geo.rects.length; i++) {
+      const cell = cells[i], ph = photoById(cell.photoId);
+      if (!ph) continue;
+      const img = await loadImage(ph.url);
+      drawCellImage(x, geo, geo.rects[i], cell, ph, img);
+      img.src = '';
+      if (25.4 / (coverBase(ph.w, ph.h, geo.rects[i].w, geo.rects[i].h, cell.r) * cell.s) < LOW_DPI) lowres++;
+    }
+    if (state.frame.cutGuide) drawGuides(x, geo);
+    const type = state.export.format === 'png' ? 'image/png' : 'image/jpeg';
+    let blob = await canvasToBlob(c, type, 0.95);
+    c.width = c.height = 0;
+    blob = await withDpi(blob, px.dpi, type);
+    if (lastExport) URL.revokeObjectURL(lastExport.url);
+    const d = new Date(), p2 = v => String(v).padStart(2, '0');
+    const name = `collage_${state.paper}_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}.${type === 'image/png' ? 'png' : 'jpg'}`;
+    lastExport = { blob, url: URL.createObjectURL(blob), name, type };
+    const empty = n - filled;
+    const warns = [];
+    if (empty) warns.push(`空いている枠が${empty}つあります（枠の色で塗られます）。`);
+    if (lowres) warns.push(`${lowres}枚の写真が低解像度です（拡大しすぎ）。印刷が粗くなる可能性があります。`);
+    const canShare = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type })] }));
+    setModal(`
+      <div class="result-img-wrap"><img src="${lastExport.url}" alt="書き出した画像"></div>
+      <div class="result-meta">${px.w} × ${px.h} px ・ ${px.dpi} dpi ・ ${(blob.size / 1024 / 1024).toFixed(1)} MB</div>
+      ${warns.map(w => `<div class="warn-box">${icon('alert')}<div>${w}</div></div>`).join('')}
+      <div class="note">スマートフォンでは画像を長押しして「写真に保存」することもできます。</div>`,
+      `${canShare ? `<button class="btn" data-act="share">${icon('share')}共有・保存</button>` : ''}
+       <button class="btn primary" data-act="download">${icon('download')}ダウンロード</button>`);
+  } catch (err) {
+    console.error(err);
+    setModal(`<div class="warn-box">${icon('alert')}<div>書き出しに失敗しました。写真の枚数を減らすか、解像度を下げて再度お試しください。</div></div>`, `<button class="btn" data-close>閉じる</button>`);
+  }
+}
+function openModal() { $('#exportModal').hidden = false; }
+function closeModal() { $('#exportModal').hidden = true; }
+function setModal(body, foot) { $('#exportBody').innerHTML = body; $('#exportFoot').innerHTML = foot; }
+$('#exportModal').addEventListener('click', async e => {
+  if (e.target === e.currentTarget || e.target.closest('[data-close]')) { closeModal(); return; }
+  const act = e.target.closest('[data-act]');
+  if (!act || !lastExport) return;
+  if (act.dataset.act === 'download') {
+    const a = document.createElement('a');
+    a.href = lastExport.url; a.download = lastExport.name;
+    document.body.appendChild(a); a.click(); a.remove();
+  } else if (act.dataset.act === 'share') {
+    try {
+      await navigator.share({ files: [new File([lastExport.blob], lastExport.name, { type: lastExport.type })] });
+    } catch (err) {
+      if (err && err.name !== 'AbortError') toast('共有できませんでした。ダウンロードをお試しください', { error: true });
+    }
+  }
+});
+$('#exportBtn').addEventListener('click', doExport);
+$('#exportBtn2').addEventListener('click', doExport);
+
+window.addEventListener('beforeunload', e => {
+  if (photos.length) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* =========================================================
+ * 起動
+ * ======================================================= */
+loadSettings();
+buildPanels();
+renderLayouts();
+refresh();
+layoutPaper();
+
+// テスト・デバッグ用の最小限のフック
+window.__collage = { state, cells, photos, addFiles, geometry, get selected() { return selected; } };
+})();
+</script>
+</body>
+</html>
